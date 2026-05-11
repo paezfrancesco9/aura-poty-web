@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #0a0a0a;
+    color: #f5f5f5;
+    font-family: 'Poppins', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .btn-gold {
+    @apply bg-gold text-dark-900 font-semibold px-6 py-3 rounded-full
+           hover:bg-gold-light transition-all duration-300
+           hover:shadow-lg hover:shadow-gold/30 active:scale-95;
+  }
+
+  .btn-outline {
+    @apply border border-gold text-gold font-semibold px-6 py-3 rounded-full
+           hover:bg-gold hover:text-dark-900 transition-all duration-300;
+  }
+
+  .card-dark {
+    @apply bg-dark-700 border border-dark-500 rounded-2xl
+           hover:border-gold/40 transition-all duration-300;
+  }
+
+  .section-title {
+    @apply font-display text-4xl md:text-5xl text-white font-light tracking-wide;
+  }
+
+  .section-subtitle {
+    @apply text-nude/70 text-sm tracking-widest uppercase;
+  }
+
+  .badge-fem {
+    @apply bg-pink-500/20 text-pink-300 text-xs px-2 py-0.5 rounded-full border border-pink-500/30;
+  }
+
+  .badge-masc {
+    @apply bg-blue-500/20 text-blue-300 text-xs px-2 py-0.5 rounded-full border border-blue-500/30;
+  }
+
+  .badge-unisex {
+    @apply bg-sage/20 text-sage-light text-xs px-2 py-0.5 rounded-full border border-sage/30;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, #c9a874, #dfc49a, #8fac8a);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glass {
+    background: rgba(26, 26, 26, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(201, 168, 116, 0.15);
+  }
+}
