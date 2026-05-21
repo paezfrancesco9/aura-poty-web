@@ -3,14 +3,13 @@ import { supabase } from '../../lib/supabase'
 import { Plus, Pencil, Trash2, Upload, Search, X, Check, FileText } from 'lucide-react'
 import Papa from 'papaparse'
 import toast from 'react-hot-toast'
+import { CATEGORIES } from '../../lib/constants'
 
 const EMPTY_PRODUCT = {
   name: '', brand: '', description: '', price: '',
-  category: 'Perfumes', gender: 'unisex', emoji: '✨',
+  category: CATEGORIES[0], gender: 'unisex', emoji: '✨',
   image_url: '', is_active: true, stock: ''
 }
-
-const CATEGORIES = ['Perfumes', 'Maquillaje', 'Skincare', 'Cuidado personal']
 const GENDERS = ['femenino', 'masculino', 'unisex']
 const EMOJIS = ['✨', '💄', '🌸', '💅', '🌿', '🌞', '💙', '💋', '🏺', '🎁', '🧴', '🪷']
 

@@ -1,10 +1,14 @@
 import { Link } from 'react-router-dom'
 import { Sparkles, Package, ChevronRight, Star, Truck, ShieldCheck } from 'lucide-react'
+import { CATEGORIES, CATEGORY_META } from '../lib/constants'
 
 const categories = [
-  { name: 'Perfumes', emoji: '🌸', desc: 'Fragancias arabes y occidentales', to: '/catalogo?cat=Perfumes' },
-  { name: 'Maquillaje', emoji: '💄', desc: 'Labiales, gloss, base y mas', to: '/catalogo?cat=Maquillaje' },
-  { name: 'Skincare', emoji: '✨', desc: 'Cremas, serums y protector solar', to: '/catalogo?cat=Skincare' },
+  ...CATEGORIES.map(name => ({
+    name,
+    emoji: CATEGORY_META[name]?.emoji ?? '✨',
+    desc: CATEGORY_META[name]?.desc ?? '',
+    to: `/catalogo?cat=${name}`,
+  })),
   { name: 'Combos', emoji: '🎁', desc: 'Arma tu combo personalizado', to: '/combo' },
 ]
 

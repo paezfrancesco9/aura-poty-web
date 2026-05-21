@@ -3,8 +3,9 @@ import { useSearchParams } from 'react-router-dom'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
 import ProductCard from '../components/ui/ProductCard'
 import { supabase } from '../lib/supabase'
+import { CATEGORIES as BASE_CATEGORIES } from '../lib/constants'
 
-const CATEGORIES = ['Todos', 'Perfumes', 'Maquillaje', 'Skincare', 'Cuidado personal']
+const CATEGORIES = ['Todos', ...BASE_CATEGORIES]
 const GENDERS = ['Todos', 'Femenino', 'Masculino', 'Unisex']
 
 const DEMO_PRODUCTS = [
