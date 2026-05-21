@@ -6,6 +6,16 @@ import { useCartStore } from '../store/useCartStore'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024)
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 1024)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return isMobile
+}
+
 const DEMO_PRODUCTS = [
   { id: 1,  name: 'Perfume Yara Mystical',   brand: 'Lattafa', price: 85000, emoji: '🌸', category: 'Perfumes' },
   { id: 2,  name: 'Perfume Asad',            brand: 'Lattafa', price: 90000, emoji: '🌿', category: 'Perfumes' },
@@ -97,12 +107,37 @@ function CajaSVG() {
 }
 
 // ── Draggable product card ────────────────────────────────────────────────────
-function DraggableProduct({ product, onAdd }) {
+function DraggableProduct({ product, onAdd, isMobile }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `product-${product.id}`,
     data: { product },
+    disabled: isMobile,
   })
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined
+
+  if (isMobile) {
+    return (
+      <div
+        onClick={() => onAdd(product)}
+        className="bg-dark-700 border border-white/10 rounded-xl overflow-hidden cursor-pointer active:scale-95 transition-all duration-150 hover:border-gold/50 select-none"
+      >
+        <div className="aspect-square bg-dark-600 relative overflow-hidden">
+          {product.image_url
+            ? <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+            : <div className="w-full h-full flex items-center justify-center text-3xl">{product.emoji || '✨'}</div>
+          }
+          <div className="absolute bottom-1 right-1 bg-gold text-dark-900 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold shadow-lg">
+            +
+          </div>
+        </div>
+        <div className="p-2">
+          <p className="text-white text-xs font-semibold line-clamp-1 leading-tight">{product.name}</p>
+          <p className="text-white/40 text-xs">{product.brand}</p>
+          <p className="text-gold text-xs font-bold mt-0.5">Gs. {product.price?.toLocaleString('es-PY')}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="relative group/card">
@@ -141,7 +176,7 @@ function DraggableProduct({ product, onAdd }) {
 }
 
 // ── Single large drop zone ────────────────────────────────────────────────────
-function BigDropZone({ items, onRemoveItem }) {
+function BigDropZone({ items, onRemoveItem, isMobile }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'combo-zone' })
 
   return (
@@ -156,9 +191,9 @@ function BigDropZone({ items, onRemoveItem }) {
             {isOver ? '✨' : '🛍️'}
           </div>
           <p className={`font-medium transition-colors ${isOver ? 'text-gold' : 'text-white/30'}`}>
-            {isOver ? 'Soltalo aqui!' : 'Arrastra productos aqui'}
+            {isOver ? 'Soltalo aqui!' : isMobile ? 'Toca un producto para agregarlo' : 'Arrastra productos aqui'}
           </p>
-          <p className="text-white/20 text-xs">O usa el boton + en cada producto</p>
+          {!isMobile && <p className="text-white/20 text-xs">O usa el boton + en cada producto</p>}
         </div>
       ) : (
         <div className="p-4 flex-1">
@@ -178,9 +213,9 @@ function BigDropZone({ items, onRemoveItem }) {
                 </div>
                 <button
                   onClick={() => onRemoveItem(idx)}
-                  className="absolute top-1 right-1 bg-dark-900/80 text-white/50 hover:text-red-400
-                    w-5 h-5 rounded-full flex items-center justify-center
-                    opacity-0 group-hover/item:opacity-100 transition-all"
+                  className={`absolute top-1 right-1 bg-dark-900/80 text-white/50 hover:text-red-400
+                    w-5 h-5 rounded-full flex items-center justify-center transition-all
+                    ${isMobile ? 'opacity-100' : 'opacity-0 group-hover/item:opacity-100'}`}
                 >
                   <X size={10} />
                 </button>
@@ -211,6 +246,7 @@ export default function ComboCreator() {
   const addItem = useCartStore(s => s.addItem)
   const setContainer = useCartStore(s => s.setContainer)
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
 
   useEffect(() => { fetchProducts() }, [])
 
@@ -270,8 +306,10 @@ export default function ComboCreator() {
             Crea tu Combo
           </h1>
           <p className="text-white/50 mt-3 max-w-xl mx-auto text-sm leading-relaxed">
-            Arrastra los productos a la zona o usa el <span className="text-gold font-semibold">+</span>.
-            Luego elegis el contenedor. El precio se calcula solo.
+            {isMobile
+              ? <>Toca los productos para agregarlos al combo. Luego elegis el contenedor.</>
+              : <>Arrastra los productos a la zona o usa el <span className="text-gold font-semibold">+</span>. Luego elegis el contenedor. El precio se calcula solo.</>
+            }
           </p>
         </div>
 
@@ -327,7 +365,7 @@ export default function ComboCreator() {
                     No se encontraron productos
                   </div>
                 ) : filteredProducts.map(product => (
-                  <DraggableProduct key={product.id} product={product} onAdd={handleClickAdd} />
+                  <DraggableProduct key={product.id} product={product} onAdd={handleClickAdd} isMobile={isMobile} />
                 ))}
               </div>
             </div>
@@ -351,7 +389,7 @@ export default function ComboCreator() {
                 )}
               </div>
 
-              <BigDropZone items={comboItems} onRemoveItem={removeItem} />
+              <BigDropZone items={comboItems} onRemoveItem={removeItem} isMobile={isMobile} />
             </div>
           </div>
 
