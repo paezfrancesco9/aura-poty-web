@@ -228,22 +228,11 @@ export default function ProductDetailModal({ product, initialVariant, onClose })
 
               {/* ── Price + Add to cart ── */}
               <div className="border-t border-white/5 pt-4 mt-auto">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Precio</p>
-                    <span className="text-gold font-bold text-3xl">
-                      Gs. {product.price?.toLocaleString('es-PY')}
-                    </span>
-                  </div>
-                  {selectedVariant && (
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-5 h-5 rounded-full border border-white/20"
-                        style={{ backgroundColor: selectedVariant.color_hex }}
-                      />
-                      <span className="text-white/50 text-sm">{selectedVariant.color_name}</span>
-                    </div>
-                  )}
+                <div className="mb-4">
+                  <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Precio</p>
+                  <span className="text-gold font-bold text-3xl">
+                    Gs. {product.price?.toLocaleString('es-PY')}
+                  </span>
                 </div>
 
                 <button
