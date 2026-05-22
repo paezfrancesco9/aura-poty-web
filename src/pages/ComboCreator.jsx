@@ -125,7 +125,7 @@ function DraggableProduct({ product, onAdd, isMobile }) {
   })
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined
 
-  const thumbnailStrip = showSwatches && (
+  const desktopThumbnailStrip = showSwatches && (
     <div className="absolute bottom-0 inset-x-0 flex gap-1 p-1.5 bg-gradient-to-t from-black/80 to-transparent overflow-x-auto scrollbar-hide">
       {hasMainImage && variants.length > 0 && (
         <button
@@ -156,28 +156,60 @@ function DraggableProduct({ product, onAdd, isMobile }) {
 
   if (isMobile) {
     return (
-      <div
-        onClick={() => onAdd(activeProduct)}
-        className="bg-dark-700 border border-white/10 rounded-xl overflow-hidden cursor-pointer active:scale-95 transition-all duration-150 hover:border-gold/50 select-none"
-      >
-        <div className="aspect-square bg-dark-600 relative overflow-hidden">
+      <div className="bg-dark-700 border border-white/10 rounded-xl overflow-hidden select-none flex flex-col">
+        {/* Imagen */}
+        <div
+          onClick={() => onAdd(activeProduct)}
+          className="aspect-square bg-dark-600 relative overflow-hidden cursor-pointer active:opacity-80 transition-opacity"
+        >
           {displayImage
             ? <img src={displayImage} alt={product.name} className="w-full h-full object-cover" />
             : <div className="w-full h-full flex items-center justify-center text-3xl">{product.emoji || '✨'}</div>
           }
-          <div className="absolute bottom-1 right-1 bg-gold text-dark-900 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold shadow-lg z-10">
-            +
-          </div>
-          {thumbnailStrip}
         </div>
-        <div className="p-2">
+
+        {/* Swatches debajo de la imagen */}
+        {showSwatches && (
+          <div className="flex gap-1.5 px-2 pt-2 overflow-x-auto scrollbar-hide">
+            {hasMainImage && variants.length > 0 && (
+              <button
+                onClick={() => setSelectedVariant(null)}
+                className={`shrink-0 w-9 h-9 rounded-lg overflow-hidden border-2 transition-all ${
+                  selectedVariant === null ? 'border-gold' : 'border-white/20 opacity-60'
+                }`}
+              >
+                <img src={product.image_url} alt="Principal" className="w-full h-full object-cover" />
+              </button>
+            )}
+            {variants.map((v, i) => (
+              <button
+                key={i}
+                onClick={() => setSelectedVariant(v)}
+                className={`shrink-0 w-9 h-9 rounded-lg overflow-hidden border-2 transition-all ${
+                  selectedVariant?.color_name === v.color_name ? 'border-gold' : 'border-white/20 opacity-60'
+                }`}
+                style={!v.image_url ? { backgroundColor: v.color_hex } : {}}
+              >
+                {v.image_url && <img src={v.image_url} alt={v.color_name} className="w-full h-full object-cover" />}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Info */}
+        <div className="px-2 pt-1.5 pb-1">
           <p className="text-white text-xs font-semibold line-clamp-1 leading-tight">{product.name}</p>
-          {selectedVariant?.color_name
-            ? <p className="text-white/40 text-xs">{selectedVariant.color_name}</p>
-            : <p className="text-white/40 text-xs">{product.brand}</p>
-          }
+          <p className="text-white/40 text-xs">{selectedVariant?.color_name || product.brand}</p>
           <p className="text-gold text-xs font-bold mt-0.5">Gs. {product.price?.toLocaleString('es-PY')}</p>
         </div>
+
+        {/* Botón agregar */}
+        <button
+          onClick={() => onAdd(activeProduct)}
+          className="mt-auto w-full bg-gold/10 active:bg-gold border-t border-gold/20 text-gold active:text-dark-900 text-xs font-semibold py-2 transition-all"
+        >
+          + Agregar
+        </button>
       </div>
     )
   }
@@ -202,7 +234,7 @@ function DraggableProduct({ product, onAdd, isMobile }) {
               <span className="text-white text-xs">↕ Arrastra</span>
             </div>
           )}
-          {thumbnailStrip}
+          {desktopThumbnailStrip}
         </div>
         <div className="p-2">
           <p className="text-white text-xs font-semibold line-clamp-1 leading-tight">{product.name}</p>
@@ -409,7 +441,7 @@ export default function ComboCreator() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-3 max-h-[460px] overflow-y-auto scrollbar-hide pr-1">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-3 gap-3 max-h-[460px] overflow-y-auto scrollbar-hide pr-1">
                 {filteredProducts.length === 0 ? (
                   <div className="col-span-3 py-12 text-center text-white/30 text-sm">
                     No se encontraron productos
