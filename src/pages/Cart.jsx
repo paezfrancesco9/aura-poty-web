@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { Trash2, Plus, Minus, ShoppingCart, MessageCircle, ArrowLeft } from 'lucide-react'
 import { useCartStore } from '../store/useCartStore'
 
+const getKey = (item) => item.cartKey || String(item.id)
+
 export default function Cart() {
   const items = useCartStore(s => s.items)
   const removeItem = useCartStore(s => s.removeItem)
@@ -11,8 +13,13 @@ export default function Cart() {
   const container = useCartStore(s => s.container)
 
   const whatsappText = () => {
-    const lines = items.map(i => `• ${i.name} x${i.quantity} — Gs. ${(i.price * i.quantity).toLocaleString('es-PY')}`)
-    const containerLine = container ? `\n• ${container.label} — ${container.price > 0 ? `Gs. ${container.price.toLocaleString('es-PY')}` : 'Gratis'}` : ''
+    const lines = items.map(i => {
+      const colorTag = i.color_name ? ` (Color: ${i.color_name})` : ''
+      return `• ${i.name}${colorTag} x${i.quantity} — Gs. ${(i.price * i.quantity).toLocaleString('es-PY')}`
+    })
+    const containerLine = container
+      ? `\n• ${container.label} — ${container.price > 0 ? `Gs. ${container.price.toLocaleString('es-PY')}` : 'Gratis'}`
+      : ''
     const text = `Hola Aura Poty! Quiero hacer un pedido:\n\n${lines.join('\n')}${containerLine}\n\nTotal: Gs. ${total.toLocaleString('es-PY')}`
     return encodeURIComponent(text)
   }
@@ -48,53 +55,67 @@ export default function Cart() {
 
           {/* Items */}
           <div className="lg:col-span-2 space-y-3">
-            {items.map(item => (
-              <div key={item.id} className="card-dark p-4 flex items-center gap-4">
-                <div className="w-16 h-16 rounded-xl bg-dark-600 flex items-center justify-center shrink-0 overflow-hidden">
-                  {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover rounded-xl" />
-                  ) : (
-                    <span className="text-2xl">{item.emoji || '✨'}</span>
-                  )}
-                </div>
+            {items.map(item => {
+              const key = getKey(item)
+              return (
+                <div key={key} className="card-dark p-4 flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl bg-dark-600 flex items-center justify-center shrink-0 overflow-hidden">
+                    {item.image_url ? (
+                      <img src={item.image_url} alt={item.name} className="w-full h-full object-cover rounded-xl" />
+                    ) : (
+                      <span className="text-2xl">{item.emoji || '✨'}</span>
+                    )}
+                  </div>
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium text-sm line-clamp-1">{item.name}</p>
-                  {item.brand && <p className="text-nude/40 text-xs">{item.brand}</p>}
-                  <p className="text-gold font-semibold text-sm mt-1">
-                    Gs. {item.price?.toLocaleString('es-PY')}
-                  </p>
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-medium text-sm line-clamp-1">{item.name}</p>
+                    {item.brand && <p className="text-nude/40 text-xs">{item.brand}</p>}
+                    {item.color_name && (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {item.color_hex && (
+                          <span
+                            className="inline-block w-3 h-3 rounded-full border border-white/20 shrink-0"
+                            style={{ backgroundColor: item.color_hex }}
+                          />
+                        )}
+                        <span className="text-nude/50 text-xs">{item.color_name}</span>
+                      </div>
+                    )}
+                    <p className="text-gold font-semibold text-sm mt-1">
+                      Gs. {item.price?.toLocaleString('es-PY')}
+                    </p>
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    className="w-7 h-7 rounded-full bg-dark-600 border border-dark-500 flex items-center justify-center hover:border-gold/50 text-nude/70 hover:text-white transition-all"
-                  >
-                    <Minus size={12} />
-                  </button>
-                  <span className="text-white font-medium w-6 text-center">{item.quantity}</span>
-                  <button
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    className="w-7 h-7 rounded-full bg-dark-600 border border-dark-500 flex items-center justify-center hover:border-gold/50 text-nude/70 hover:text-white transition-all"
-                  >
-                    <Plus size={12} />
-                  </button>
-                </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => updateQuantity(key, item.quantity - 1)}
+                      className="w-7 h-7 rounded-full bg-dark-600 border border-dark-500 flex items-center justify-center hover:border-gold/50 text-nude/70 hover:text-white transition-all"
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <span className="text-white font-medium w-6 text-center">{item.quantity}</span>
+                    <button
+                      onClick={() => updateQuantity(key, item.quantity + 1)}
+                      className="w-7 h-7 rounded-full bg-dark-600 border border-dark-500 flex items-center justify-center hover:border-gold/50 text-nude/70 hover:text-white transition-all"
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
 
-                <div className="text-right shrink-0">
-                  <p className="text-white font-semibold text-sm">
-                    Gs. {(item.price * item.quantity).toLocaleString('es-PY')}
-                  </p>
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    className="text-nude/30 hover:text-red-400 transition-colors mt-1"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <div className="text-right shrink-0">
+                    <p className="text-white font-semibold text-sm">
+                      Gs. {(item.price * item.quantity).toLocaleString('es-PY')}
+                    </p>
+                    <button
+                      onClick={() => removeItem(key)}
+                      className="text-nude/30 hover:text-red-400 transition-colors mt-1"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
 
             <button
               onClick={clearCart}
@@ -110,14 +131,23 @@ export default function Cart() {
               <h3 className="text-white font-semibold mb-4">Resumen del pedido</h3>
 
               <div className="space-y-2 mb-4">
-                {items.map(item => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-nude/60 line-clamp-1">{item.name} x{item.quantity}</span>
-                    <span className="text-nude/70 shrink-0 ml-2">
-                      Gs. {(item.price * item.quantity).toLocaleString('es-PY')}
-                    </span>
-                  </div>
-                ))}
+                {items.map(item => {
+                  const key = getKey(item)
+                  return (
+                    <div key={key} className="flex justify-between text-sm gap-2">
+                      <span className="text-nude/60 line-clamp-1 flex-1">
+                        {item.name}
+                        {item.color_name && (
+                          <span className="text-nude/40"> · {item.color_name}</span>
+                        )}
+                        {' '}x{item.quantity}
+                      </span>
+                      <span className="text-nude/70 shrink-0">
+                        Gs. {(item.price * item.quantity).toLocaleString('es-PY')}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
 
               {container && (

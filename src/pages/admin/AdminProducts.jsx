@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, Pencil, Trash2, Upload, Search, X, Check, FileText } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, Search, X, Check, FileText, Palette } from 'lucide-react'
 import Papa from 'papaparse'
 import toast from 'react-hot-toast'
 import { CATEGORIES } from '../../lib/constants'
@@ -8,15 +8,17 @@ import { CATEGORIES } from '../../lib/constants'
 const EMPTY_PRODUCT = {
   name: '', brand: '', description: '', price: '',
   category: CATEGORIES[0], gender: 'unisex', emoji: '✨',
-  image_url: '', is_active: true, stock: ''
+  image_url: '', is_active: true, stock: '',
+  variants: [],
 }
+const EMPTY_VARIANT = { color_name: '', color_hex: '#c9a874', image_url: '' }
 const GENDERS = ['femenino', 'masculino', 'unisex']
 const EMOJIS = ['✨', '💄', '🌸', '💅', '🌿', '🌞', '💙', '💋', '🏺', '🎁', '🧴', '🪷']
 
 const DEMO_PRODUCTS = [
-  { id: 1, name: 'Perfume Yara Mystical', brand: 'Lattafa', price: 85000, category: 'Perfumes', gender: 'femenino', emoji: '🌸', is_active: true, stock: 15 },
-  { id: 2, name: 'Lip Glow Oil', brand: 'DIOR', price: 45000, category: 'Maquillaje', gender: 'femenino', emoji: '💄', is_active: true, stock: 8 },
-  { id: 3, name: 'Disaar HA Cream', brand: 'Disaar', price: 55000, category: 'Skincare', gender: 'unisex', emoji: '✨', is_active: true, stock: 20 },
+  { id: 1, name: 'Perfume Yara Mystical', brand: 'Lattafa', price: 85000, category: 'Perfumes', gender: 'femenino', emoji: '🌸', is_active: true, stock: 15, variants: [] },
+  { id: 2, name: 'Lip Glow Oil', brand: 'DIOR', price: 45000, category: 'Maquillaje', gender: 'femenino', emoji: '💄', is_active: true, stock: 8, variants: [] },
+  { id: 3, name: 'Disaar HA Cream', brand: 'Disaar', price: 55000, category: 'Skincare', gender: 'unisex', emoji: '✨', is_active: true, stock: 20, variants: [] },
 ]
 
 export default function AdminProducts() {
@@ -25,10 +27,13 @@ export default function AdminProducts() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(EMPTY_PRODUCT)
+  const [variantForm, setVariantForm] = useState(EMPTY_VARIANT)
   const [search, setSearch] = useState('')
   const [csvPreview, setCsvPreview] = useState(null)
+  const [uploadingVariantImage, setUploadingVariantImage] = useState(false)
   const fileRef = useRef()
   const imageRef = useRef()
+  const variantImageRef = useRef()
   const hasSupabase = !!import.meta.env.VITE_SUPABASE_URL
 
   useEffect(() => { if (hasSupabase) fetchProducts() }, [])
@@ -40,9 +45,14 @@ export default function AdminProducts() {
     setLoading(false)
   }
 
-  const openNew = () => { setEditing(null); setForm(EMPTY_PRODUCT); setShowForm(true) }
-  const openEdit = (p) => { setEditing(p.id); setForm({ ...p }); setShowForm(true) }
-  const closeForm = () => { setShowForm(false); setEditing(null); setForm(EMPTY_PRODUCT) }
+  const openNew = () => { setEditing(null); setForm(EMPTY_PRODUCT); setVariantForm(EMPTY_VARIANT); setShowForm(true) }
+  const openEdit = (p) => {
+    setEditing(p.id)
+    setForm({ ...p, variants: p.variants || [] })
+    setVariantForm(EMPTY_VARIANT)
+    setShowForm(true)
+  }
+  const closeForm = () => { setShowForm(false); setEditing(null); setForm(EMPTY_PRODUCT); setVariantForm(EMPTY_VARIANT) }
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0]
@@ -57,10 +67,46 @@ export default function AdminProducts() {
     toast.success('Imagen subida')
   }
 
+  const handleVariantImageUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    if (!hasSupabase) { toast.error('Configura Supabase para subir imagenes'); return }
+    setUploadingVariantImage(true)
+    const ext = file.name.split('.').pop()
+    const path = `products/variants/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('product-images').upload(path, file)
+    if (error) { toast.error('Error subiendo imagen'); setUploadingVariantImage(false); return }
+    const { data } = supabase.storage.from('product-images').getPublicUrl(path)
+    setVariantForm(v => ({ ...v, image_url: data.publicUrl }))
+    toast.success('Imagen de variante subida')
+    setUploadingVariantImage(false)
+  }
+
+  const addVariant = () => {
+    if (!variantForm.color_name.trim()) { toast.error('Ingresa el nombre del color'); return }
+    const newVariant = {
+      id: Date.now().toString(36),
+      color_name: variantForm.color_name.trim(),
+      color_hex: variantForm.color_hex,
+      image_url: variantForm.image_url.trim(),
+    }
+    setForm(f => ({ ...f, variants: [...(f.variants || []), newVariant] }))
+    setVariantForm(EMPTY_VARIANT)
+  }
+
+  const removeVariant = (idx) => {
+    setForm(f => ({ ...f, variants: f.variants.filter((_, i) => i !== idx) }))
+  }
+
   const handleSave = async () => {
     if (!form.name || !form.price) { toast.error('Nombre y precio son obligatorios'); return }
 
-    const payload = { ...form, price: Number(form.price), stock: Number(form.stock) || 0 }
+    const payload = {
+      ...form,
+      price: Number(form.price),
+      stock: Number(form.stock) || 0,
+      variants: form.variants || [],
+    }
 
     if (!hasSupabase) {
       if (editing) {
@@ -123,6 +169,7 @@ export default function AdminProducts() {
       emoji: row.emoji || '✨',
       is_active: true,
       stock: Number(row.stock || 0),
+      variants: [],
     })).filter(p => p.name && p.price > 0)
 
     if (!hasSupabase) {
@@ -205,8 +252,6 @@ export default function AdminProducts() {
               <p className="text-nude/30 text-xs mt-2">... y {csvPreview.length - 5} mas</p>
             )}
           </div>
-
-          {/* CSV Template hint */}
           <div className="mt-3 bg-dark-600 rounded-lg p-3">
             <p className="text-nude/40 text-xs font-medium mb-1">Columnas esperadas en el CSV:</p>
             <p className="text-nude/30 text-xs font-mono">nombre, marca, descripcion, precio, categoria, genero, emoji, stock</p>
@@ -237,6 +282,7 @@ export default function AdminProducts() {
                 <th className="text-left text-nude/40 text-xs uppercase tracking-wider px-4 py-3 hidden md:table-cell">Genero</th>
                 <th className="text-left text-nude/40 text-xs uppercase tracking-wider px-4 py-3">Precio</th>
                 <th className="text-left text-nude/40 text-xs uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Stock</th>
+                <th className="text-left text-nude/40 text-xs uppercase tracking-wider px-4 py-3 hidden md:table-cell">Colores</th>
                 <th className="text-left text-nude/40 text-xs uppercase tracking-wider px-4 py-3">Estado</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -244,10 +290,10 @@ export default function AdminProducts() {
             <tbody className="divide-y divide-dark-600">
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}><td colSpan={7} className="px-4 py-3"><div className="h-4 bg-dark-600 rounded animate-pulse" /></td></tr>
+                  <tr key={i}><td colSpan={8} className="px-4 py-3"><div className="h-4 bg-dark-600 rounded animate-pulse" /></td></tr>
                 ))
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-nude/40 text-sm">No hay productos</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-nude/40 text-sm">No hay productos</td></tr>
               ) : (
                 filtered.map(p => (
                   <tr key={p.id} className="hover:bg-dark-600/50 transition-colors">
@@ -277,6 +323,25 @@ export default function AdminProducts() {
                       Gs. {Number(p.price).toLocaleString('es-PY')}
                     </td>
                     <td className="px-4 py-3 text-nude/60 text-sm hidden sm:table-cell">{p.stock}</td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      {(p.variants || []).length > 0 ? (
+                        <div className="flex gap-1">
+                          {(p.variants || []).slice(0, 5).map((v, i) => (
+                            <div
+                              key={i}
+                              title={v.color_name}
+                              className="w-4 h-4 rounded-full border border-white/20"
+                              style={{ backgroundColor: v.color_hex }}
+                            />
+                          ))}
+                          {(p.variants || []).length > 5 && (
+                            <span className="text-nude/40 text-xs">+{p.variants.length - 5}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-nude/30 text-xs">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                         p.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
@@ -314,7 +379,7 @@ export default function AdminProducts() {
             <div className="p-6 space-y-4">
               {/* Image */}
               <div>
-                <label className="text-nude/50 text-xs uppercase tracking-wider block mb-2">Imagen</label>
+                <label className="text-nude/50 text-xs uppercase tracking-wider block mb-2">Imagen principal</label>
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-16 rounded-xl bg-dark-600 border border-dark-500 flex items-center justify-center overflow-hidden">
                     {form.image_url ? (
@@ -437,6 +502,119 @@ export default function AdminProducts() {
                     <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full transition-transform peer-checked:translate-x-4" />
                   </label>
                   <span className="text-nude/60 text-sm">Producto activo (visible en el catalogo)</span>
+                </div>
+              </div>
+
+              {/* ─── Variaciones de Color ─── */}
+              <div className="border-t border-dark-500 pt-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Palette size={16} className="text-gold" />
+                  <label className="text-white text-sm font-medium">Variaciones de Color</label>
+                  <span className="text-nude/40 text-xs">(opcional)</span>
+                </div>
+
+                {/* Existing variants */}
+                {(form.variants || []).length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    {(form.variants || []).map((v, i) => (
+                      <div key={i} className="flex items-center gap-3 bg-dark-600 rounded-xl p-3">
+                        <div
+                          className="w-8 h-8 rounded-full border-2 border-dark-400 shrink-0"
+                          style={{ backgroundColor: v.color_hex }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm font-medium">{v.color_name}</p>
+                          <p className="text-nude/30 text-xs font-mono">{v.color_hex}</p>
+                        </div>
+                        {v.image_url && (
+                          <img
+                            src={v.image_url}
+                            alt={v.color_name}
+                            className="w-10 h-10 rounded-lg object-cover border border-dark-400 shrink-0"
+                          />
+                        )}
+                        {!v.image_url && (
+                          <div className="w-10 h-10 rounded-lg bg-dark-500 border border-dark-400 flex items-center justify-center shrink-0">
+                            <span className="text-nude/30 text-xs">Sin img</span>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => removeVariant(i)}
+                          className="text-nude/30 hover:text-red-400 transition-colors p-1 shrink-0"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add variant form */}
+                <div className="bg-dark-600 rounded-xl p-4 space-y-3">
+                  <p className="text-nude/50 text-xs uppercase tracking-wider">Agregar color</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Nombre del color (ej: Rosa, Nude, Rojo)"
+                      value={variantForm.color_name}
+                      onChange={e => setVariantForm(v => ({ ...v, color_name: e.target.value }))}
+                      className="flex-1 bg-dark-500 border border-dark-400 rounded-lg px-3 py-2 text-white placeholder:text-nude/30 focus:outline-none focus:border-gold/50 text-sm"
+                    />
+                    <div className="relative shrink-0" title="Elegir color">
+                      <input
+                        type="color"
+                        value={variantForm.color_hex}
+                        onChange={e => setVariantForm(v => ({ ...v, color_hex: e.target.value }))}
+                        className="w-10 h-10 rounded-lg border border-dark-400 cursor-pointer p-0.5 bg-dark-500"
+                        style={{ backgroundColor: variantForm.color_hex }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="URL de imagen para este color (opcional)"
+                      value={variantForm.image_url}
+                      onChange={e => setVariantForm(v => ({ ...v, image_url: e.target.value }))}
+                      className="flex-1 bg-dark-500 border border-dark-400 rounded-lg px-3 py-2 text-white placeholder:text-nude/30 focus:outline-none focus:border-gold/50 text-sm"
+                    />
+                    <button
+                      onClick={() => variantImageRef.current?.click()}
+                      disabled={uploadingVariantImage}
+                      className="btn-outline text-xs px-3 py-2 flex items-center gap-1 shrink-0 disabled:opacity-50"
+                    >
+                      <Upload size={12} />
+                      {uploadingVariantImage ? '...' : 'Img'}
+                    </button>
+                    <input
+                      ref={variantImageRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleVariantImageUpload}
+                    />
+                  </div>
+
+                  {variantForm.image_url && (
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={variantForm.image_url}
+                        alt="preview"
+                        className="w-12 h-12 rounded-lg object-cover border border-dark-400"
+                        onError={e => { e.target.style.display = 'none' }}
+                      />
+                      <span className="text-nude/40 text-xs">Vista previa</span>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={addVariant}
+                    disabled={!variantForm.color_name.trim()}
+                    className="btn-gold text-xs px-4 py-2 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Plus size={12} /> Agregar este color
+                  </button>
                 </div>
               </div>
             </div>

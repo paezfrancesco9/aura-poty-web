@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+const getKey = (item) => item.cartKey || String(item.id)
+
 export const useCartStore = create(
   persist(
     (set, get) => ({
@@ -9,32 +11,43 @@ export const useCartStore = create(
 
       setContainer: (container) => set({ container }),
 
-      addItem: (product) => {
+      addItem: (product, variant = null) => {
+        const variantId = variant ? (variant.id || variant.color_name) : 'default'
+        const cartKey = `${product.id}_${variantId}`
         const items = get().items
-        const existing = items.find(i => i.id === product.id)
+        const existing = items.find(i => getKey(i) === cartKey)
         if (existing) {
           set({
             items: items.map(i =>
-              i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i
+              getKey(i) === cartKey ? { ...i, quantity: i.quantity + 1 } : i
             )
           })
         } else {
-          set({ items: [...items, { ...product, quantity: 1 }] })
+          set({
+            items: [...items, {
+              ...product,
+              cartKey,
+              image_url: variant?.image_url || product.image_url,
+              color_name: variant?.color_name || null,
+              color_hex: variant?.color_hex || null,
+              quantity: 1,
+            }]
+          })
         }
       },
 
-      removeItem: (id) => {
-        set({ items: get().items.filter(i => i.id !== id) })
+      removeItem: (cartKey) => {
+        set({ items: get().items.filter(i => getKey(i) !== cartKey) })
       },
 
-      updateQuantity: (id, quantity) => {
+      updateQuantity: (cartKey, quantity) => {
         if (quantity <= 0) {
-          set({ items: get().items.filter(i => i.id !== id) })
+          set({ items: get().items.filter(i => getKey(i) !== cartKey) })
           return
         }
         set({
           items: get().items.map(i =>
-            i.id === id ? { ...i, quantity } : i
+            getKey(i) === cartKey ? { ...i, quantity } : i
           )
         })
       },
