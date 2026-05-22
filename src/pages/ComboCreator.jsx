@@ -108,31 +108,74 @@ function CajaSVG() {
 
 // ── Draggable product card ────────────────────────────────────────────────────
 function DraggableProduct({ product, onAdd, isMobile }) {
+  const variants = product.variants || []
+  const hasMainImage = !!product.image_url
+  const totalColorOptions = variants.length + (hasMainImage && variants.length > 0 ? 1 : 0)
+  const showSwatches = totalColorOptions >= 2
+
+  const [selectedVariant, setSelectedVariant] = useState(null)
+
+  const displayImage = selectedVariant?.image_url || product.image_url
+  const activeProduct = { ...product, image_url: displayImage, color_name: selectedVariant?.color_name || null }
+
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `product-${product.id}`,
-    data: { product },
+    data: { product: activeProduct },
     disabled: isMobile,
   })
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined
 
+  const thumbnailStrip = showSwatches && (
+    <div className="absolute bottom-0 inset-x-0 flex gap-1 p-1.5 bg-gradient-to-t from-black/80 to-transparent overflow-x-auto scrollbar-hide">
+      {hasMainImage && variants.length > 0 && (
+        <button
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); setSelectedVariant(null) }}
+          className={`shrink-0 w-7 h-7 rounded-md overflow-hidden border-2 transition-all ${
+            selectedVariant === null ? 'border-gold' : 'border-white/30 opacity-60'
+          }`}
+        >
+          <img src={product.image_url} alt="Principal" className="w-full h-full object-cover" />
+        </button>
+      )}
+      {variants.map((v, i) => (
+        <button
+          key={i}
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); setSelectedVariant(v) }}
+          className={`shrink-0 w-7 h-7 rounded-md overflow-hidden border-2 transition-all ${
+            selectedVariant?.color_name === v.color_name ? 'border-gold' : 'border-white/30 opacity-60'
+          }`}
+          style={!v.image_url ? { backgroundColor: v.color_hex } : {}}
+        >
+          {v.image_url && <img src={v.image_url} alt={v.color_name} className="w-full h-full object-cover" />}
+        </button>
+      ))}
+    </div>
+  )
+
   if (isMobile) {
     return (
       <div
-        onClick={() => onAdd(product)}
+        onClick={() => onAdd(activeProduct)}
         className="bg-dark-700 border border-white/10 rounded-xl overflow-hidden cursor-pointer active:scale-95 transition-all duration-150 hover:border-gold/50 select-none"
       >
         <div className="aspect-square bg-dark-600 relative overflow-hidden">
-          {product.image_url
-            ? <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+          {displayImage
+            ? <img src={displayImage} alt={product.name} className="w-full h-full object-cover" />
             : <div className="w-full h-full flex items-center justify-center text-3xl">{product.emoji || '✨'}</div>
           }
-          <div className="absolute bottom-1 right-1 bg-gold text-dark-900 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold shadow-lg">
+          <div className="absolute bottom-1 right-1 bg-gold text-dark-900 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold shadow-lg z-10">
             +
           </div>
+          {thumbnailStrip}
         </div>
         <div className="p-2">
           <p className="text-white text-xs font-semibold line-clamp-1 leading-tight">{product.name}</p>
-          <p className="text-white/40 text-xs">{product.brand}</p>
+          {selectedVariant?.color_name
+            ? <p className="text-white/40 text-xs">{selectedVariant.color_name}</p>
+            : <p className="text-white/40 text-xs">{product.brand}</p>
+          }
           <p className="text-gold text-xs font-bold mt-0.5">Gs. {product.price?.toLocaleString('es-PY')}</p>
         </div>
       </div>
@@ -147,26 +190,33 @@ function DraggableProduct({ product, onAdd, isMobile }) {
           ${isDragging ? 'opacity-20 cursor-grabbing' : 'cursor-grab border-white/10 hover:border-gold/50'}`}
       >
         <div className="aspect-square bg-dark-600 relative overflow-hidden">
-          {product.image_url
-            ? <img src={product.image_url} alt={product.name}
+          {displayImage
+            ? <img src={displayImage} alt={product.name}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
             : <div className="w-full h-full flex items-center justify-center text-3xl group-hover:scale-110 transition-transform duration-300">
                 {product.emoji || '✨'}
               </div>
           }
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-1.5">
-            <span className="text-white text-xs">↕ Arrastra</span>
-          </div>
+          {!showSwatches && (
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-1.5">
+              <span className="text-white text-xs">↕ Arrastra</span>
+            </div>
+          )}
+          {thumbnailStrip}
         </div>
         <div className="p-2">
           <p className="text-white text-xs font-semibold line-clamp-1 leading-tight">{product.name}</p>
-          <p className="text-white/40 text-xs">{product.brand}</p>
+          {selectedVariant?.color_name
+            ? <p className="text-white/40 text-xs">{selectedVariant.color_name}</p>
+            : <p className="text-white/40 text-xs">{product.brand}</p>
+          }
           <p className="text-gold text-xs font-bold mt-0.5">Gs. {product.price?.toLocaleString('es-PY')}</p>
         </div>
       </div>
 
       <button
-        onClick={() => onAdd(product)}
+        onPointerDown={e => e.stopPropagation()}
+        onClick={() => onAdd(activeProduct)}
         className="absolute top-1 right-1 bg-gold text-dark-900 font-bold w-6 h-6 rounded-full
           flex items-center justify-center text-sm shadow-lg z-10
           opacity-0 group-hover/card:opacity-100 hover:scale-110 transition-all duration-200"
