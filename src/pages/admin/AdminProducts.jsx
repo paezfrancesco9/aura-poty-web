@@ -9,15 +9,16 @@ const EMPTY_PRODUCT = {
   name: '', brand: '', description: '', price: '',
   category: CATEGORIES[0], gender: 'unisex', emoji: '✨',
   image_url: '', is_active: true, stock: '',
-  color_name: '', color_hex: '', color_group: '',
+  variants: [],
 }
+const EMPTY_VARIANT = { title: '', color_name: '', color_hex: '#c9a874', image_url: '' }
 const GENDERS = ['femenino', 'masculino', 'unisex']
 const EMOJIS = ['✨', '💄', '🌸', '💅', '🌿', '🌞', '💙', '💋', '🏺', '🎁', '🧴', '🪷']
 
 const DEMO_PRODUCTS = [
-  { id: 1, name: 'Perfume Yara Mystical', brand: 'Lattafa', price: 85000, category: 'Perfumes', gender: 'femenino', emoji: '🌸', is_active: true, stock: 15 },
-  { id: 2, name: 'Lip Glow Oil', brand: 'DIOR', price: 45000, category: 'Maquillaje', gender: 'femenino', emoji: '💄', is_active: true, stock: 8 },
-  { id: 3, name: 'Disaar HA Cream', brand: 'Disaar', price: 55000, category: 'Skincare', gender: 'unisex', emoji: '✨', is_active: true, stock: 20 },
+  { id: 1, name: 'Perfume Yara Mystical', brand: 'Lattafa', price: 85000, category: 'Perfumes', gender: 'femenino', emoji: '🌸', is_active: true, stock: 15, variants: [] },
+  { id: 2, name: 'Lip Glow Oil', brand: 'DIOR', price: 45000, category: 'Maquillaje', gender: 'femenino', emoji: '💄', is_active: true, stock: 8, variants: [] },
+  { id: 3, name: 'Disaar HA Cream', brand: 'Disaar', price: 55000, category: 'Skincare', gender: 'unisex', emoji: '✨', is_active: true, stock: 20, variants: [] },
 ]
 
 export default function AdminProducts() {
@@ -26,10 +27,13 @@ export default function AdminProducts() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(EMPTY_PRODUCT)
+  const [variantForm, setVariantForm] = useState(EMPTY_VARIANT)
   const [search, setSearch] = useState('')
   const [csvPreview, setCsvPreview] = useState(null)
+  const [uploadingVariantImage, setUploadingVariantImage] = useState(false)
   const fileRef = useRef()
   const imageRef = useRef()
+  const variantImageRef = useRef()
   const hasSupabase = !!import.meta.env.VITE_SUPABASE_URL
 
   useEffect(() => { if (hasSupabase) fetchProducts() }, [])
@@ -41,13 +45,14 @@ export default function AdminProducts() {
     setLoading(false)
   }
 
-  const openNew = () => { setEditing(null); setForm(EMPTY_PRODUCT); setShowForm(true) }
+  const openNew = () => { setEditing(null); setForm(EMPTY_PRODUCT); setVariantForm(EMPTY_VARIANT); setShowForm(true) }
   const openEdit = (p) => {
     setEditing(p.id)
-    setForm({ ...EMPTY_PRODUCT, ...p })
+    setForm({ ...p, variants: p.variants || [] })
+    setVariantForm(EMPTY_VARIANT)
     setShowForm(true)
   }
-  const closeForm = () => { setShowForm(false); setEditing(null); setForm(EMPTY_PRODUCT) }
+  const closeForm = () => { setShowForm(false); setEditing(null); setForm(EMPTY_PRODUCT); setVariantForm(EMPTY_VARIANT) }
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0]
@@ -62,11 +67,43 @@ export default function AdminProducts() {
     toast.success('Imagen subida')
   }
 
+  const handleVariantImageUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    if (!hasSupabase) { toast.error('Configura Supabase para subir imagenes'); return }
+    setUploadingVariantImage(true)
+    const ext = file.name.split('.').pop()
+    const path = `products/variants/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('product-images').upload(path, file)
+    if (error) { toast.error('Error subiendo imagen'); setUploadingVariantImage(false); return }
+    const { data } = supabase.storage.from('product-images').getPublicUrl(path)
+    setVariantForm(v => ({ ...v, image_url: data.publicUrl }))
+    toast.success('Imagen de variante subida')
+    setUploadingVariantImage(false)
+  }
+
+  const addVariant = () => {
+    if (!variantForm.color_name.trim()) { toast.error('Ingresa el nombre del color'); return }
+    const newVariant = {
+      id: Date.now().toString(36),
+      title: variantForm.title.trim(),
+      color_name: variantForm.color_name.trim(),
+      color_hex: variantForm.color_hex,
+      image_url: variantForm.image_url.trim(),
+    }
+    setForm(f => ({ ...f, variants: [...(f.variants || []), newVariant] }))
+    setVariantForm(EMPTY_VARIANT)
+  }
+
+  const removeVariant = (idx) => {
+    setForm(f => ({ ...f, variants: f.variants.filter((_, i) => i !== idx) }))
+  }
+
   const handleSave = async () => {
     if (!form.name || !form.price) { toast.error('Nombre y precio son obligatorios'); return }
 
-    // Payload limpio: solo columnas conocidas
-    const payload = {
+    // Payload limpio: solo columnas conocidas, sin id/created_at/updated_at
+    const basePayload = {
       name: form.name,
       brand: form.brand || null,
       description: form.description || null,
@@ -77,27 +114,43 @@ export default function AdminProducts() {
       image_url: form.image_url || null,
       is_active: form.is_active ?? true,
       stock: Number(form.stock) || 0,
-      color_name: form.color_name || null,
-      color_hex: form.color_hex || null,
-      color_group: form.color_group || null,
     }
 
     if (!hasSupabase) {
+      const demoPayload = { ...basePayload, variants: form.variants || [] }
       if (editing) {
-        setProducts(prev => prev.map(p => p.id === editing ? { ...payload, id: editing } : p))
+        setProducts(prev => prev.map(p => p.id === editing ? { ...demoPayload, id: editing } : p))
       } else {
-        setProducts(prev => [...prev, { ...payload, id: Date.now() }])
+        setProducts(prev => [...prev, { ...demoPayload, id: Date.now() }])
       }
       toast.success(editing ? 'Producto actualizado' : 'Producto creado')
       closeForm()
       return
     }
 
-    const { error } = editing
-      ? await supabase.from('products').update(payload).eq('id', editing)
-      : await supabase.from('products').insert(payload)
+    // Intentar con variants primero
+    const payloadWithVariants = { ...basePayload, variants: form.variants || [] }
+    const payloadWithout = basePayload
 
-    if (error) {
+    const trySave = async (payload) => {
+      if (editing) {
+        return supabase.from('products').update(payload).eq('id', editing)
+      } else {
+        return supabase.from('products').insert(payload)
+      }
+    }
+
+    let { error } = await trySave(payloadWithVariants)
+
+    // Si falla por columna variants inexistente, reintentar sin ella
+    if (error && (error.code === '42703' || error.message?.includes('variants'))) {
+      toast('Columna "variants" no existe aún en la BD — guardando sin variantes', { icon: '⚠️' })
+      const retry = await trySave(payloadWithout)
+      if (retry.error) {
+        toast.error('Error al guardar: ' + retry.error.message)
+        return
+      }
+    } else if (error) {
       toast.error('Error al guardar: ' + error.message)
       return
     }
@@ -299,13 +352,19 @@ export default function AdminProducts() {
                     </td>
                     <td className="px-4 py-3 text-nude/60 text-sm hidden sm:table-cell">{p.stock}</td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      {p.color_name ? (
-                        <div className="flex items-center gap-1.5">
-                          {p.color_hex && (
-                            <div className="w-3.5 h-3.5 rounded-full border border-white/20 shrink-0" style={{ backgroundColor: p.color_hex }} />
+                      {(p.variants || []).length > 0 ? (
+                        <div className="flex gap-1">
+                          {(p.variants || []).slice(0, 5).map((v, i) => (
+                            <div
+                              key={i}
+                              title={v.color_name}
+                              className="w-4 h-4 rounded-full border border-white/20"
+                              style={{ backgroundColor: v.color_hex }}
+                            />
+                          ))}
+                          {(p.variants || []).length > 5 && (
+                            <span className="text-nude/40 text-xs">+{p.variants.length - 5}</span>
                           )}
-                          <span className="text-nude/60 text-xs">{p.color_name}</span>
-                          {p.color_group && <span className="text-nude/30 text-xs">· {p.color_group}</span>}
                         </div>
                       ) : (
                         <span className="text-nude/30 text-xs">—</span>
@@ -474,63 +533,127 @@ export default function AdminProducts() {
                 </div>
               </div>
 
-              {/* ─── Color ─── */}
+              {/* ─── Variaciones de Color ─── */}
               <div className="border-t border-dark-500 pt-5">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-4">
                   <Palette size={16} className="text-gold" />
-                  <label className="text-white text-sm font-medium">Color</label>
+                  <label className="text-white text-sm font-medium">Variaciones de Color</label>
                   <span className="text-nude/40 text-xs">(opcional)</span>
                 </div>
-                <p className="text-nude/30 text-xs mb-4">
-                  Si el producto tiene variantes de color, cargá cada color como un producto separado y usá el mismo <strong className="text-nude/50">Grupo</strong> en todos para que aparezcan juntos en el catálogo.
-                </p>
 
-                <div className="space-y-3">
-                  <div className="flex gap-3">
-                    <div className="flex-1">
-                      <label className="text-nude/50 text-xs uppercase tracking-wider block mb-1.5">Nombre del color</label>
-                      <input
-                        type="text"
-                        placeholder="ej: Rosa, Nude, Rojo..."
-                        value={form.color_name}
-                        onChange={e => setForm(f => ({ ...f, color_name: e.target.value }))}
-                        className="w-full bg-dark-600 border border-dark-500 rounded-xl px-3 py-2.5 text-white placeholder:text-nude/30 focus:outline-none focus:border-gold/50 text-sm"
-                      />
-                    </div>
-                    <div className="shrink-0">
-                      <label className="text-nude/50 text-xs uppercase tracking-wider block mb-1.5">Color</label>
-                      <div className="relative">
-                        <input
-                          type="color"
-                          value={form.color_hex || '#c9a874'}
-                          onChange={e => setForm(f => ({ ...f, color_hex: e.target.value }))}
-                          className="w-12 h-10 rounded-xl border border-dark-500 cursor-pointer p-0.5 bg-dark-600"
+                {/* Existing variants */}
+                {(form.variants || []).length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    {(form.variants || []).map((v, i) => (
+                      <div key={i} className="flex items-center gap-3 bg-dark-600 rounded-xl p-3">
+                        <div
+                          className="w-8 h-8 rounded-full border-2 border-dark-400 shrink-0"
+                          style={{ backgroundColor: v.color_hex }}
                         />
+                        <div className="flex-1 min-w-0">
+                          {v.title && <p className="text-white text-sm font-medium line-clamp-1">{v.title}</p>}
+                          <p className={v.title ? 'text-nude/40 text-xs' : 'text-white text-sm font-medium'}>{v.color_name}</p>
+                          <p className="text-nude/30 text-xs font-mono">{v.color_hex}</p>
+                        </div>
+                        {v.image_url && (
+                          <img
+                            src={v.image_url}
+                            alt={v.color_name}
+                            className="w-10 h-10 rounded-lg object-cover border border-dark-400 shrink-0"
+                          />
+                        )}
+                        {!v.image_url && (
+                          <div className="w-10 h-10 rounded-lg bg-dark-500 border border-dark-400 flex items-center justify-center shrink-0">
+                            <span className="text-nude/30 text-xs">Sin img</span>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => removeVariant(i)}
+                          className="text-nude/30 hover:text-red-400 transition-colors p-1 shrink-0"
+                        >
+                          <X size={14} />
+                        </button>
                       </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add variant form */}
+                <div className="bg-dark-600 rounded-xl p-4 space-y-3">
+                  <p className="text-nude/50 text-xs uppercase tracking-wider">Agregar color</p>
+
+                  {/* Variant title (optional) */}
+                  <input
+                    type="text"
+                    placeholder={`Título del producto para este color (ej: ${form.name || 'Producto'} — Rosa)`}
+                    value={variantForm.title}
+                    onChange={e => setVariantForm(v => ({ ...v, title: e.target.value }))}
+                    className="w-full bg-dark-500 border border-dark-400 rounded-lg px-3 py-2 text-white placeholder:text-nude/30 focus:outline-none focus:border-gold/50 text-sm"
+                  />
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Nombre del color (ej: Rosa, Nude, Rojo)"
+                      value={variantForm.color_name}
+                      onChange={e => setVariantForm(v => ({ ...v, color_name: e.target.value }))}
+                      className="flex-1 bg-dark-500 border border-dark-400 rounded-lg px-3 py-2 text-white placeholder:text-nude/30 focus:outline-none focus:border-gold/50 text-sm"
+                    />
+                    <div className="relative shrink-0" title="Elegir color">
+                      <input
+                        type="color"
+                        value={variantForm.color_hex}
+                        onChange={e => setVariantForm(v => ({ ...v, color_hex: e.target.value }))}
+                        className="w-10 h-10 rounded-lg border border-dark-400 cursor-pointer p-0.5 bg-dark-500"
+                        style={{ backgroundColor: variantForm.color_hex }}
+                      />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="text-nude/50 text-xs uppercase tracking-wider block mb-1.5">Grupo de colores</label>
+                  <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="ej: lip-gloss-shimmer (mismo texto en todos los colores del grupo)"
-                      value={form.color_group}
-                      onChange={e => setForm(f => ({ ...f, color_group: e.target.value }))}
-                      className="w-full bg-dark-600 border border-dark-500 rounded-xl px-3 py-2.5 text-white placeholder:text-nude/30 focus:outline-none focus:border-gold/50 text-sm"
+                      placeholder="URL de imagen para este color (opcional)"
+                      value={variantForm.image_url}
+                      onChange={e => setVariantForm(v => ({ ...v, image_url: e.target.value }))}
+                      className="flex-1 bg-dark-500 border border-dark-400 rounded-lg px-3 py-2 text-white placeholder:text-nude/30 focus:outline-none focus:border-gold/50 text-sm"
+                    />
+                    <button
+                      onClick={() => variantImageRef.current?.click()}
+                      disabled={uploadingVariantImage}
+                      className="btn-outline text-xs px-3 py-2 flex items-center gap-1 shrink-0 disabled:opacity-50"
+                    >
+                      <Upload size={12} />
+                      {uploadingVariantImage ? '...' : 'Img'}
+                    </button>
+                    <input
+                      ref={variantImageRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleVariantImageUpload}
                     />
                   </div>
 
-                  {form.color_name && (
-                    <div className="flex items-center gap-2 bg-dark-600 rounded-xl px-3 py-2.5">
-                      <div
-                        className="w-5 h-5 rounded-full border border-white/20 shrink-0"
-                        style={{ backgroundColor: form.color_hex || '#c9a874' }}
+                  {variantForm.image_url && (
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={variantForm.image_url}
+                        alt="preview"
+                        className="w-12 h-12 rounded-lg object-cover border border-dark-400"
+                        onError={e => { e.target.style.display = 'none' }}
                       />
-                      <span className="text-white text-sm">{form.color_name}</span>
-                      {form.color_group && <span className="text-nude/40 text-xs">· grupo: {form.color_group}</span>}
+                      <span className="text-nude/40 text-xs">Vista previa</span>
                     </div>
                   )}
+
+                  <button
+                    onClick={addVariant}
+                    disabled={!variantForm.color_name.trim()}
+                    className="btn-gold text-xs px-4 py-2 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Plus size={12} /> Agregar este color
+                  </button>
                 </div>
               </div>
             </div>
