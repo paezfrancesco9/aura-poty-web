@@ -238,7 +238,12 @@ function DraggableProduct({ product, onAdd, isMobile }) {
         className={`bg-dark-700 border rounded-xl overflow-hidden select-none transition-all duration-200 group
           ${isDragging ? 'opacity-20 cursor-grabbing' : 'cursor-grab border-white/10 hover:border-gold/50'}`}
       >
-        <div className="aspect-square bg-dark-600 relative overflow-hidden">
+        <div
+          className="aspect-square bg-dark-600 relative overflow-hidden"
+          onPointerDown={e => e.stopPropagation()}
+          onClick={() => setShowModal(true)}
+          style={{ cursor: 'pointer' }}
+        >
           {displayImage
             ? <img src={displayImage} alt={product.name}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -246,11 +251,9 @@ function DraggableProduct({ product, onAdd, isMobile }) {
                 {product.emoji || '✨'}
               </div>
           }
-          {!showSwatches && (
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-1.5">
-              <span className="text-white text-xs">↕ Arrastra</span>
-            </div>
-          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-1.5">
+            <span className="text-white text-xs">Ver detalle</span>
+          </div>
           {desktopThumbnailStrip}
         </div>
         <div className="p-2">
@@ -270,6 +273,19 @@ function DraggableProduct({ product, onAdd, isMobile }) {
           flex items-center justify-center text-sm shadow-lg z-10
           opacity-0 group-hover/card:opacity-100 hover:scale-110 transition-all duration-200"
       >+</button>
+
+      {showModal && (
+        <ProductDetailModal
+          product={product}
+          initialVariant={selectedVariant}
+          onClose={() => setShowModal(false)}
+          addLabel="Agregar a mi combo"
+          onAddToCombo={(p, variant) => {
+            const toAdd = { ...p, image_url: variant?.image_url || p.image_url, color_name: variant?.color_name || null }
+            onAdd(toAdd)
+          }}
+        />
+      )}
     </div>
   )
 }
