@@ -4,6 +4,7 @@ import { Search, SlidersHorizontal, X } from 'lucide-react'
 import ProductCard from '../components/ui/ProductCard'
 import { supabase } from '../lib/supabase'
 import { CATEGORIES as BASE_CATEGORIES } from '../lib/constants'
+import { useProductsStore } from '../store/useProductsStore'
 
 const CATEGORIES = ['Todos', ...BASE_CATEGORIES]
 const GENDERS = ['Todos', 'Femenino', 'Masculino', 'Unisex']
@@ -29,18 +30,25 @@ export default function Catalog() {
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const setAllProducts = useProductsStore(s => s.setProducts)
 
   const activeCategory = searchParams.get('cat') || 'Todos'
   const activeGender = searchParams.get('gender') || 'Todos'
 
-  useEffect(() => { fetchProducts() }, [])
+  useEffect(() => {
+    setAllProducts(DEMO_PRODUCTS)
+    fetchProducts()
+  }, [])
 
   const fetchProducts = async () => {
     if (!import.meta.env.VITE_SUPABASE_URL) return
     setLoading(true)
     const { data, error } = await supabase
       .from('products').select('*').eq('is_active', true).order('created_at', { ascending: false })
-    if (!error && data?.length > 0) setProducts(data)
+    if (!error && data?.length > 0) {
+      setProducts(data)
+      setAllProducts(data)
+    }
     setLoading(false)
   }
 
