@@ -75,11 +75,11 @@ export default function ProductCard({ product }) {
           {/* Name — click opens modal */}
           <div className="cursor-pointer" onClick={() => setShowDetail(true)}>
             <h3 className="text-white font-semibold text-sm line-clamp-2 group-hover:text-gold transition-colors">
-              {product.name}
-              {selectedVariant && (
-                <span className="text-white/40 font-normal"> — {selectedVariant.color_name}</span>
-              )}
+              {selectedVariant?.title || product.name}
             </h3>
+            {selectedVariant && !selectedVariant.title && (
+              <p className="text-white/40 text-xs mt-0.5">{selectedVariant.color_name}</p>
+            )}
             {product.brand && <p className="text-white/40 text-xs mt-0.5">{product.brand}</p>}
           </div>
 

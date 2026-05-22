@@ -129,13 +129,13 @@ export default function ProductDetailModal({ product, initialVariant, onClose })
               {/* Name & brand */}
               <div>
                 <h2 className="font-display text-2xl sm:text-3xl text-white font-light tracking-wide leading-tight">
-                  {product.name}
-                  {selectedVariant && (
-                    <span className="text-gold/60 font-normal text-lg"> — {selectedVariant.color_name}</span>
-                  )}
+                  {selectedVariant?.title || product.name}
                 </h2>
+                {selectedVariant && !selectedVariant.title && (
+                  <p className="text-gold/70 text-sm mt-0.5">{selectedVariant.color_name}</p>
+                )}
                 {product.brand && (
-                  <p className="text-white/40 text-sm mt-1.5">{product.brand}</p>
+                  <p className="text-white/40 text-sm mt-1">{product.brand}</p>
                 )}
               </div>
 

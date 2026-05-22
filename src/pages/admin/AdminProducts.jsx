@@ -11,7 +11,7 @@ const EMPTY_PRODUCT = {
   image_url: '', is_active: true, stock: '',
   variants: [],
 }
-const EMPTY_VARIANT = { color_name: '', color_hex: '#c9a874', image_url: '' }
+const EMPTY_VARIANT = { title: '', color_name: '', color_hex: '#c9a874', image_url: '' }
 const GENDERS = ['femenino', 'masculino', 'unisex']
 const EMOJIS = ['✨', '💄', '🌸', '💅', '🌿', '🌞', '💙', '💋', '🏺', '🎁', '🧴', '🪷']
 
@@ -86,6 +86,7 @@ export default function AdminProducts() {
     if (!variantForm.color_name.trim()) { toast.error('Ingresa el nombre del color'); return }
     const newVariant = {
       id: Date.now().toString(36),
+      title: variantForm.title.trim(),
       color_name: variantForm.color_name.trim(),
       color_hex: variantForm.color_hex,
       image_url: variantForm.image_url.trim(),
@@ -101,33 +102,60 @@ export default function AdminProducts() {
   const handleSave = async () => {
     if (!form.name || !form.price) { toast.error('Nombre y precio son obligatorios'); return }
 
-    const payload = {
-      ...form,
+    // Payload limpio: solo columnas conocidas, sin id/created_at/updated_at
+    const basePayload = {
+      name: form.name,
+      brand: form.brand || null,
+      description: form.description || null,
       price: Number(form.price),
+      category: form.category || 'Perfumes',
+      gender: form.gender || 'unisex',
+      emoji: form.emoji || '✨',
+      image_url: form.image_url || null,
+      is_active: form.is_active ?? true,
       stock: Number(form.stock) || 0,
-      variants: form.variants || [],
     }
 
     if (!hasSupabase) {
+      const demoPayload = { ...basePayload, variants: form.variants || [] }
       if (editing) {
-        setProducts(prev => prev.map(p => p.id === editing ? { ...payload, id: editing } : p))
+        setProducts(prev => prev.map(p => p.id === editing ? { ...demoPayload, id: editing } : p))
       } else {
-        setProducts(prev => [...prev, { ...payload, id: Date.now() }])
+        setProducts(prev => [...prev, { ...demoPayload, id: Date.now() }])
       }
       toast.success(editing ? 'Producto actualizado' : 'Producto creado')
       closeForm()
       return
     }
 
-    if (editing) {
-      const { error } = await supabase.from('products').update(payload).eq('id', editing)
-      if (error) { toast.error('Error al actualizar'); return }
-      toast.success('Producto actualizado')
-    } else {
-      const { error } = await supabase.from('products').insert(payload)
-      if (error) { toast.error('Error al crear'); return }
-      toast.success('Producto creado')
+    // Intentar con variants primero
+    const payloadWithVariants = { ...basePayload, variants: form.variants || [] }
+    const payloadWithout = basePayload
+
+    const trySave = async (payload) => {
+      if (editing) {
+        return supabase.from('products').update(payload).eq('id', editing)
+      } else {
+        return supabase.from('products').insert(payload)
+      }
     }
+
+    let { error } = await trySave(payloadWithVariants)
+
+    // Si falla por columna variants inexistente, reintentar sin ella
+    if (error && (error.code === '42703' || error.message?.includes('variants'))) {
+      toast('Columna "variants" no existe aún en la BD — guardando sin variantes', { icon: '⚠️' })
+      const retry = await trySave(payloadWithout)
+      if (retry.error) {
+        toast.error('Error al guardar: ' + retry.error.message)
+        return
+      }
+    } else if (error) {
+      toast.error('Error al guardar: ' + error.message)
+      return
+    }
+
+    toast.success(editing ? 'Producto actualizado' : 'Producto creado')
     fetchProducts()
     closeForm()
   }
@@ -523,7 +551,8 @@ export default function AdminProducts() {
                           style={{ backgroundColor: v.color_hex }}
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-white text-sm font-medium">{v.color_name}</p>
+                          {v.title && <p className="text-white text-sm font-medium line-clamp-1">{v.title}</p>}
+                          <p className={v.title ? 'text-nude/40 text-xs' : 'text-white text-sm font-medium'}>{v.color_name}</p>
                           <p className="text-nude/30 text-xs font-mono">{v.color_hex}</p>
                         </div>
                         {v.image_url && (
@@ -552,6 +581,16 @@ export default function AdminProducts() {
                 {/* Add variant form */}
                 <div className="bg-dark-600 rounded-xl p-4 space-y-3">
                   <p className="text-nude/50 text-xs uppercase tracking-wider">Agregar color</p>
+
+                  {/* Variant title (optional) */}
+                  <input
+                    type="text"
+                    placeholder={`Título del producto para este color (ej: ${form.name || 'Producto'} — Rosa)`}
+                    value={variantForm.title}
+                    onChange={e => setVariantForm(v => ({ ...v, title: e.target.value }))}
+                    className="w-full bg-dark-500 border border-dark-400 rounded-lg px-3 py-2 text-white placeholder:text-nude/30 focus:outline-none focus:border-gold/50 text-sm"
+                  />
+
                   <div className="flex gap-2">
                     <input
                       type="text"

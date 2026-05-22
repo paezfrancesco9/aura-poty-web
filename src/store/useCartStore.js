@@ -30,6 +30,7 @@ export const useCartStore = create(
               image_url: variant?.image_url || product.image_url,
               color_name: variant?.color_name || null,
               color_hex: variant?.color_hex || null,
+              variant_title: variant?.title || null,
               quantity: 1,
             }]
           })

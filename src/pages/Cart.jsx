@@ -14,8 +14,9 @@ export default function Cart() {
 
   const whatsappText = () => {
     const lines = items.map(i => {
-      const colorTag = i.color_name ? ` (Color: ${i.color_name})` : ''
-      return `• ${i.name}${colorTag} x${i.quantity} — Gs. ${(i.price * i.quantity).toLocaleString('es-PY')}`
+      const displayName = i.variant_title || i.name
+      const colorTag = i.color_name && !i.variant_title ? ` (Color: ${i.color_name})` : ''
+      return `• ${displayName}${colorTag} x${i.quantity} — Gs. ${(i.price * i.quantity).toLocaleString('es-PY')}`
     })
     const containerLine = container
       ? `\n• ${container.label} — ${container.price > 0 ? `Gs. ${container.price.toLocaleString('es-PY')}` : 'Gratis'}`
