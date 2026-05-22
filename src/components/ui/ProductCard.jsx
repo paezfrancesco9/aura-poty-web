@@ -12,55 +12,70 @@ const genderBadge = {
 
 export default function ProductCard({ product }) {
   const addItem = useCartStore(s => s.addItem)
+  const variants = product.variants || []
+  const hasMainImage = !!product.image_url
 
-  // _colorVariants: array de productos del mismo grupo (incluye al producto base)
-  const colorVariants = product._colorVariants || []
-  const hasColors = colorVariants.length >= 2
-
-  // El producto activo cambia al hacer clic en un swatch
-  const [activeProduct, setActiveProduct] = useState(product)
+  // null = imagen principal del producto
+  const [selectedVariant, setSelectedVariant] = useState(null)
   const [showDetail, setShowDetail] = useState(false)
 
-  const badge = genderBadge[activeProduct.gender] || genderBadge.unisex
+  // La imagen principal siempre es el default (null = sin variante)
+  const displayImage = selectedVariant?.image_url || product.image_url
+
+  // Mostrar swatches solo si hay 2+ opciones de color en total
+  // (imagen principal + 1 variante, o 2+ variantes sin imagen principal)
+  const totalColorOptions = variants.length + (hasMainImage && variants.length > 0 ? 1 : 0)
+  const showSwatches = totalColorOptions >= 2
+
+  const badge = genderBadge[product.gender] || genderBadge.unisex
+
+  const handleSelectVariant = (e, variant) => {
+    e.stopPropagation()
+    setSelectedVariant(variant) // null = volver a la imagen principal
+  }
 
   const handleAddToCart = (e) => {
     e.stopPropagation()
-    addItem(activeProduct)
-    toast.success(`${activeProduct.name} agregado`, {
+    addItem(product, selectedVariant)
+    const label = selectedVariant?.title || selectedVariant?.color_name
+    toast.success(`${product.name}${label ? ` — ${label}` : ''} agregado`, {
       style: { background: '#1a1a1a', color: '#fff', border: '1px solid #c9a874' },
       iconTheme: { primary: '#c9a874', secondary: '#1a1a1a' },
     })
   }
 
+  const displayName = selectedVariant?.title || product.name
+  const displaySub = selectedVariant && !selectedVariant.title ? selectedVariant.color_name : null
+
   return (
     <>
       <div className="bg-dark-700 border border-white/10 rounded-2xl overflow-hidden group hover:border-gold/40 transition-all duration-300 flex flex-col">
 
-        {/* Imagen */}
+        {/* Imagen — click abre modal */}
         <div
           className="relative aspect-square bg-dark-600 overflow-hidden cursor-pointer shrink-0"
           onClick={() => setShowDetail(true)}
         >
-          {activeProduct.image_url ? (
+          {displayImage ? (
             <img
-              key={activeProduct.image_url}
-              src={activeProduct.image_url}
-              alt={activeProduct.name}
+              key={displayImage}
+              src={displayImage}
+              alt={displayName}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-4xl group-hover:scale-110 transition-transform duration-300">
-              {activeProduct.emoji || '✨'}
+              {product.emoji || '✨'}
             </div>
           )}
 
           <div className="absolute top-2 left-2">
             <span className={badge.className}>{badge.label}</span>
           </div>
-          {activeProduct.category && (
+          {product.category && (
             <div className="absolute top-2 right-2">
               <span className="bg-dark-900/70 text-white/60 text-xs px-2 py-0.5 rounded-full backdrop-blur-sm">
-                {activeProduct.category}
+                {product.category}
               </span>
             </div>
           )}
@@ -70,46 +85,63 @@ export default function ProductCard({ product }) {
         <div className="p-3 sm:p-4 flex flex-col flex-1 gap-2">
           <div className="cursor-pointer" onClick={() => setShowDetail(true)}>
             <h3 className="text-white font-semibold text-sm line-clamp-2 group-hover:text-gold transition-colors">
-              {activeProduct.name}
+              {displayName}
             </h3>
-            {activeProduct.color_name && (
-              <p className="text-white/40 text-xs mt-0.5">{activeProduct.color_name}</p>
-            )}
-            {activeProduct.brand && (
-              <p className="text-white/40 text-xs mt-0.5">{activeProduct.brand}</p>
-            )}
+            {displaySub && <p className="text-white/40 text-xs mt-0.5">{displaySub}</p>}
+            {product.brand && <p className="text-white/40 text-xs mt-0.5">{product.brand}</p>}
           </div>
 
-          {/* Swatches de color — solo si el grupo tiene 2+ productos */}
-          {hasColors && (
+          {/* Swatches — solo si hay 2+ opciones de color */}
+          {showSwatches && (
             <div className="flex gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
-              {colorVariants.map(v => {
-                const isActive = activeProduct.id === v.id
+
+              {/* Swatch de imagen principal (si existe + hay variantes) */}
+              {hasMainImage && variants.length > 0 && (
+                <button
+                  onClick={(e) => handleSelectVariant(e, null)}
+                  title="Color principal"
+                  className={`w-6 h-6 rounded-md overflow-hidden transition-all duration-150 ${
+                    selectedVariant === null
+                      ? 'ring-2 ring-gold ring-offset-1 ring-offset-dark-700 scale-110'
+                      : 'ring-1 ring-white/20 hover:ring-white/50 hover:scale-105'
+                  }`}
+                >
+                  <img src={product.image_url} alt="Principal" className="w-full h-full object-cover" />
+                </button>
+              )}
+
+              {/* Swatches de variantes */}
+              {variants.slice(0, 7).map(v => {
+                const isSelected = selectedVariant?.color_name === v.color_name
                 return (
                   <button
-                    key={v.id}
-                    title={v.color_name || v.name}
-                    onClick={(e) => { e.stopPropagation(); setActiveProduct(v) }}
-                    className={`w-6 h-6 rounded-md overflow-hidden transition-all duration-150 ${
-                      isActive
+                    key={v.id || v.color_name}
+                    onClick={(e) => handleSelectVariant(e, v)}
+                    title={v.color_name}
+                    className={`w-6 h-6 rounded-md transition-all duration-150 overflow-hidden ${
+                      isSelected
                         ? 'ring-2 ring-gold ring-offset-1 ring-offset-dark-700 scale-110'
                         : 'ring-1 ring-white/20 hover:ring-white/50 hover:scale-105'
                     }`}
-                    style={!v.image_url ? { backgroundColor: v.color_hex || '#888' } : {}}
                   >
-                    {v.image_url && (
-                      <img src={v.image_url} alt={v.color_name || v.name} className="w-full h-full object-cover" />
+                    {v.image_url ? (
+                      <img src={v.image_url} alt={v.color_name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full" style={{ backgroundColor: v.color_hex }} />
                     )}
                   </button>
                 )
               })}
+              {variants.length > 7 && (
+                <span className="text-white/30 text-xs self-center">+{variants.length - 7}</span>
+              )}
             </div>
           )}
 
-          {/* Precio + botones */}
+          {/* Precio + botón */}
           <div className="flex items-center justify-between gap-2 mt-auto pt-1">
             <span className="text-gold font-bold text-base sm:text-lg leading-none">
-              Gs. {activeProduct.price?.toLocaleString('es-PY')}
+              Gs. {product.price?.toLocaleString('es-PY')}
             </span>
             <button
               onClick={() => setShowDetail(true)}
@@ -134,8 +166,8 @@ export default function ProductCard({ product }) {
 
       {showDetail && (
         <ProductDetailModal
-          product={activeProduct}
-          colorVariants={colorVariants}
+          product={product}
+          initialVariant={selectedVariant}
           onClose={() => setShowDetail(false)}
         />
       )}

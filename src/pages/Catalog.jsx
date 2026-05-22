@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
 import ProductCard from '../components/ui/ProductCard'
@@ -22,27 +22,6 @@ const DEMO_PRODUCTS = [
   { id: 11, name: 'Disaar Whitening Cream', brand: 'Disaar', price: 52000, category: 'Skincare', gender: 'unisex', emoji: '⚡', description: 'Crema aclarante con vitamina C' },
   { id: 12, name: 'St. Ives Exfoliante', brand: "St. Ives", price: 38000, category: 'Skincare', gender: 'unisex', emoji: '🌱', description: 'Exfoliante facial con avena y miel' },
 ]
-
-// Agrupa productos del mismo color_group en una sola tarjeta con swatches
-function groupByColor(products) {
-  const seen = new Set()
-  const result = []
-
-  for (const p of products) {
-    if (seen.has(p.id)) continue
-    const key = p.color_group?.trim()
-    if (!key) {
-      result.push(p)
-      continue
-    }
-    const group = products.filter(q => q.color_group?.trim() === key)
-    group.forEach(q => seen.add(q.id))
-    // Solo agrupa si hay 2+ productos en el grupo
-    result.push(group.length >= 2 ? { ...p, _colorVariants: group } : p)
-  }
-
-  return result
-}
 
 export default function Catalog() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -79,8 +58,6 @@ export default function Catalog() {
     return matchCat && matchGender && matchSearch
   })
 
-  const grouped = useMemo(() => groupByColor(filtered), [filtered])
-
   return (
     <div className="min-h-screen pt-24 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -88,7 +65,7 @@ export default function Catalog() {
         <div className="mb-10">
           <p className="text-gold/70 text-xs tracking-widest uppercase mb-2">Descubri</p>
           <h1 className="font-display text-4xl md:text-5xl text-white font-light tracking-wide">Catalogo</h1>
-          <p className="text-white/40 mt-2 text-sm">{grouped.length} productos encontrados</p>
+          <p className="text-white/40 mt-2 text-sm">{filtered.length} productos encontrados</p>
         </div>
 
         {/* Search + Filter toggle */}
@@ -178,9 +155,9 @@ export default function Catalog() {
               <div key={i} className="aspect-[3/4] rounded-2xl bg-dark-700 animate-pulse" />
             ))}
           </div>
-        ) : grouped.length > 0 ? (
+        ) : filtered.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {grouped.map(product => (
+            {filtered.map(product => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
