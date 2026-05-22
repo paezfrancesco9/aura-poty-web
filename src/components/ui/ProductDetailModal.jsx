@@ -12,10 +12,13 @@ const genderBadge = {
 export default function ProductDetailModal({ product, initialVariant, onClose }) {
   const addItem = useCartStore(s => s.addItem)
   const variants = product.variants || []
-  const [selectedVariant, setSelectedVariant] = useState(
-    initialVariant || (variants.length > 0 ? variants[0] : null)
-  )
+  const hasMainImage = !!product.image_url
+  // null = imagen principal del producto
+  const [selectedVariant, setSelectedVariant] = useState(initialVariant ?? null)
   const [imgLoaded, setImgLoaded] = useState(false)
+
+  const totalColorOptions = variants.length + (hasMainImage && variants.length > 0 ? 1 : 0)
+  const showSwatches = totalColorOptions >= 2
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -100,9 +103,20 @@ export default function ProductDetailModal({ product, initialVariant, onClose })
                 )}
               </div>
 
-              {/* Thumbnail strip for variants (visible on mobile below image) */}
-              {variants.length > 1 && (
+              {/* Thumbnail strip mobile */}
+              {showSwatches && (
                 <div className="sm:hidden absolute bottom-0 inset-x-0 flex gap-2 p-3 bg-gradient-to-t from-black/60 to-transparent overflow-x-auto scrollbar-hide">
+                  {/* Miniatura imagen principal */}
+                  {hasMainImage && variants.length > 0 && (
+                    <button
+                      onClick={() => { setImgLoaded(false); setSelectedVariant(null) }}
+                      className={`shrink-0 w-12 h-12 rounded-xl overflow-hidden border-2 transition-all ${
+                        selectedVariant === null ? 'border-gold scale-105' : 'border-white/20 opacity-70'
+                      }`}
+                    >
+                      <img src={product.image_url} alt="Principal" className="w-full h-full object-cover" />
+                    </button>
+                  )}
                   {variants.map(v => (
                     <button
                       key={v.id || v.color_name}
@@ -147,17 +161,36 @@ export default function ProductDetailModal({ product, initialVariant, onClose })
               )}
 
               {/* ── Color variants ── */}
-              {variants.length > 0 && (
+              {showSwatches && (
                 <div className="border-t border-white/5 pt-4">
                   <p className="text-white/40 text-xs uppercase tracking-widest mb-3">
                     Color:{' '}
                     <span className="text-white/80 normal-case tracking-normal font-medium">
-                      {selectedVariant?.color_name || '—'}
+                      {selectedVariant?.color_name || 'Principal'}
                     </span>
                   </p>
 
-                  {/* Swatch grid */}
                   <div className="flex flex-wrap gap-3">
+                    {/* Opción: imagen principal */}
+                    {hasMainImage && variants.length > 0 && (
+                      <button
+                        onClick={() => { setImgLoaded(false); setSelectedVariant(null) }}
+                        className={`relative flex flex-col items-center gap-1.5 transition-all duration-200 ${
+                          selectedVariant === null ? 'scale-105' : 'opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        <div className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${
+                          selectedVariant === null ? 'border-gold shadow-lg shadow-gold/20' : 'border-white/15'
+                        }`}>
+                          <img src={product.image_url} alt="Principal" className="w-full h-full object-cover" />
+                        </div>
+                        <span className={`text-xs leading-none ${selectedVariant === null ? 'text-gold font-medium' : 'text-white/40'}`}>
+                          Principal
+                        </span>
+                      </button>
+                    )}
+
+                    {/* Variantes de color */}
                     {variants.map(v => {
                       const isSelected = selectedVariant?.color_name === v.color_name
                       return (
@@ -166,10 +199,9 @@ export default function ProductDetailModal({ product, initialVariant, onClose })
                           onClick={() => handleSelectVariant(v)}
                           title={v.color_name}
                           className={`relative flex flex-col items-center gap-1.5 transition-all duration-200 ${
-                            isSelected ? 'scale-105' : 'opacity-70 hover:opacity-100 hover:scale-102'
+                            isSelected ? 'scale-105' : 'opacity-70 hover:opacity-100'
                           }`}
                         >
-                          {/* Image thumbnail or color swatch */}
                           <div className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${
                             isSelected ? 'border-gold shadow-lg shadow-gold/20' : 'border-white/15'
                           }`}>
@@ -181,7 +213,6 @@ export default function ProductDetailModal({ product, initialVariant, onClose })
                               </div>
                             )}
                           </div>
-                          {/* Color name label */}
                           <span className={`text-xs leading-none ${isSelected ? 'text-gold font-medium' : 'text-white/40'}`}>
                             {v.color_name}
                           </span>
