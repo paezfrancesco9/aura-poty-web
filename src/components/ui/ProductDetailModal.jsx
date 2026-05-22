@@ -9,7 +9,7 @@ const genderBadge = {
   unisex: { label: 'Unisex', className: 'bg-white/10 text-white/70 text-xs px-2.5 py-1 rounded-full border border-white/20' },
 }
 
-export default function ProductDetailModal({ product, initialVariant, onClose }) {
+export default function ProductDetailModal({ product, initialVariant, onClose, onAddToCombo, addLabel }) {
   const addItem = useCartStore(s => s.addItem)
   const variants = product.variants || []
   const hasMainImage = !!product.image_url
@@ -39,12 +39,16 @@ export default function ProductDetailModal({ product, initialVariant, onClose })
   }
 
   const handleAdd = () => {
-    addItem(product, selectedVariant)
-    const colorText = selectedVariant ? ` — ${selectedVariant.color_name}` : ''
-    toast.success(`${product.name}${colorText} agregado`, {
-      style: { background: '#1a1a1a', color: '#fff', border: '1px solid #c9a874' },
-      iconTheme: { primary: '#c9a874', secondary: '#1a1a1a' },
-    })
+    if (onAddToCombo) {
+      onAddToCombo(product, selectedVariant)
+    } else {
+      addItem(product, selectedVariant)
+      const colorText = selectedVariant ? ` — ${selectedVariant.color_name}` : ''
+      toast.success(`${product.name}${colorText} agregado`, {
+        style: { background: '#1a1a1a', color: '#fff', border: '1px solid #c9a874' },
+        iconTheme: { primary: '#c9a874', secondary: '#1a1a1a' },
+      })
+    }
     onClose()
   }
 
@@ -240,7 +244,7 @@ export default function ProductDetailModal({ product, initialVariant, onClose })
                   className="w-full btn-gold flex items-center justify-center gap-2.5 text-sm py-3.5"
                 >
                   <ShoppingCart size={18} />
-                  Agregar al carrito
+                  {addLabel || 'Agregar al carrito'}
                 </button>
               </div>
             </div>
