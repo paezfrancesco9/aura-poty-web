@@ -1,6 +1,8 @@
-import { X, ShoppingCart, Check } from 'lucide-react'
+import { X, ShoppingCart, Check, Heart } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useCartStore } from '../../store/useCartStore'
+import { useFavoritesStore } from '../../store/useFavoritesStore'
+import { useRecentlyViewedStore } from '../../store/useRecentlyViewedStore'
 import toast from 'react-hot-toast'
 
 const genderBadge = {
@@ -11,6 +13,9 @@ const genderBadge = {
 
 export default function ProductDetailModal({ product, initialVariant, onClose, onAddToCombo, addLabel }) {
   const addItem = useCartStore(s => s.addItem)
+  const toggleFavorite = useFavoritesStore(s => s.toggleFavorite)
+  const isFav = useFavoritesStore(s => s.isFavorite(product.id))
+  const addProduct = useRecentlyViewedStore(s => s.addProduct)
   const variants = product.variants || []
   const hasMainImage = !!product.image_url
   // null = imagen principal del producto
@@ -19,6 +24,10 @@ export default function ProductDetailModal({ product, initialVariant, onClose, o
 
   const totalColorOptions = variants.length + (hasMainImage && variants.length > 0 ? 1 : 0)
   const showSwatches = totalColorOptions >= 2
+
+  useEffect(() => {
+    addProduct(product)
+  }, [product.id])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -54,7 +63,7 @@ export default function ProductDetailModal({ product, initialVariant, onClose, o
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md p-0 sm:p-6"
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md p-0 sm:p-6"
       onClick={onClose}
     >
       {/* Modal container */}
@@ -73,12 +82,25 @@ export default function ProductDetailModal({ product, initialVariant, onClose, o
               </span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="text-white/40 hover:text-white bg-white/5 hover:bg-white/15 rounded-full p-2 transition-all"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => toggleFavorite(product)}
+              className={`rounded-full p-2 transition-all ${
+                isFav
+                  ? 'text-rose-400 bg-rose-500/10 hover:bg-rose-500/20'
+                  : 'text-white/40 hover:text-rose-400 bg-white/5 hover:bg-white/15'
+              }`}
+              title={isFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+            >
+              <Heart size={18} fill={isFav ? 'currentColor' : 'none'} />
+            </button>
+            <button
+              onClick={onClose}
+              className="text-white/40 hover:text-white bg-white/5 hover:bg-white/15 rounded-full p-2 transition-all"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Body — scrollable */}

@@ -1,6 +1,7 @@
-import { ShoppingCart } from 'lucide-react'
+import { ShoppingCart, Heart } from 'lucide-react'
 import { useState } from 'react'
 import { useCartStore } from '../../store/useCartStore'
+import { useFavoritesStore } from '../../store/useFavoritesStore'
 import toast from 'react-hot-toast'
 import ProductDetailModal from './ProductDetailModal'
 
@@ -12,6 +13,8 @@ const genderBadge = {
 
 export default function ProductCard({ product }) {
   const addItem = useCartStore(s => s.addItem)
+  const toggleFavorite = useFavoritesStore(s => s.toggleFavorite)
+  const isFav = useFavoritesStore(s => s.isFavorite(product.id))
   const variants = product.variants || []
   const hasMainImage = !!product.image_url
 
@@ -79,6 +82,17 @@ export default function ProductCard({ product }) {
               </span>
             </div>
           )}
+          <button
+            onClick={(e) => { e.stopPropagation(); toggleFavorite(product) }}
+            className={`absolute bottom-2 right-2 p-1.5 rounded-full backdrop-blur-sm border transition-all duration-200 active:scale-95 ${
+              isFav
+                ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                : 'bg-dark-900/60 text-white/40 border-white/10 hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/10'
+            }`}
+            title={isFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+          >
+            <Heart size={13} fill={isFav ? 'currentColor' : 'none'} />
+          </button>
         </div>
 
         {/* Info */}
