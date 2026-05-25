@@ -6,6 +6,7 @@ import { useCartStore } from '../store/useCartStore'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 import ProductDetailModal from '../components/ui/ProductDetailModal'
+import { CATEGORIES } from '../lib/constants'
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024)
@@ -397,7 +398,7 @@ export default function ComboCreator() {
   const removeItem = (idx) => setComboItems(prev => prev.filter((_, i) => i !== idx))
   const clearAll = () => { setComboItems([]); setSelectedContainer(null) }
 
-  const categories = ['Todos', ...Array.from(new Set(products.map(p => p.category).filter(Boolean)))]
+  const categories = ['Todos', ...CATEGORIES]
 
   const filteredProducts = products.filter(p => {
     const matchCat = search || activeCategory === 'Todos' || p.category === activeCategory
