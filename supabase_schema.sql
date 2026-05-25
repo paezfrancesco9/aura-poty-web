@@ -16,13 +16,9 @@ create table if not exists products (
   image_url text,
   is_active boolean default true,
   stock integer default 0,
-  variants jsonb default '[]'::jsonb,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
-
--- Si ya existe la tabla, agregar la columna variants:
--- alter table products add column if not exists variants jsonb default '[]'::jsonb;
 
 -- Tabla de combos guardados
 create table if not exists combos (
