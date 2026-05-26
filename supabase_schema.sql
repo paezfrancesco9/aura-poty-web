@@ -38,10 +38,29 @@ create table if not exists combo_items (
   price_at_time numeric(10,2)
 );
 
+-- Tabla de ofertas relámpago
+create table if not exists flash_sales (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  brand text,
+  description text,
+  price numeric(10,2) not null default 0,
+  sale_price numeric(10,2),
+  category text default 'Perfumes',
+  emoji text default '⚡',
+  image_url text,
+  is_active boolean default true,
+  stock integer default 0,
+  ends_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
 -- Habilitar Row Level Security
 alter table products enable row level security;
 alter table combos enable row level security;
 alter table combo_items enable row level security;
+alter table flash_sales enable row level security;
 
 -- Politicas: lectura publica para productos activos
 create policy "Productos visibles para todos" on products
@@ -58,6 +77,19 @@ create policy "Admin puede actualizar productos" on products
   for update using (auth.role() = 'authenticated');
 
 create policy "Admin puede eliminar productos" on products
+  for delete using (auth.role() = 'authenticated');
+
+-- Politicas flash_sales: lectura pública
+create policy "Flash sales visibles para todos" on flash_sales
+  for select using (true);
+
+create policy "Admin puede insertar flash sales" on flash_sales
+  for insert with check (auth.role() = 'authenticated');
+
+create policy "Admin puede actualizar flash sales" on flash_sales
+  for update using (auth.role() = 'authenticated');
+
+create policy "Admin puede eliminar flash sales" on flash_sales
   for delete using (auth.role() = 'authenticated');
 
 -- Storage bucket para imagenes de productos
@@ -82,6 +114,10 @@ $$ language plpgsql;
 
 create trigger update_products_updated_at
   before update on products
+  for each row execute function update_updated_at();
+
+create trigger update_flash_sales_updated_at
+  before update on flash_sales
   for each row execute function update_updated_at();
 
 -- Datos de ejemplo para empezar
