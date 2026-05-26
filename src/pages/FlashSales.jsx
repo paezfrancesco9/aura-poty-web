@@ -92,7 +92,7 @@ function Countdown({ endsAt, onExpire }) {
   )
 }
 
-function FlashCard({ item, onExpire }) {
+function FlashCard({ item, onExpire, onOpen }) {
   const addItem = useCartStore(s => s.addItem)
   const isExpired = !item.is_active || (item.ends_at && new Date(item.ends_at) <= new Date())
   const displayPrice = item.sale_price ?? item.price
@@ -114,7 +114,10 @@ function FlashCard({ item, onExpire }) {
         </div>
       )}
 
-      <div className="relative h-44 bg-gradient-to-br from-dark-700 to-dark-900 overflow-hidden">
+      <div
+        className={`relative h-44 bg-gradient-to-br from-dark-700 to-dark-900 overflow-hidden ${!isExpired && onOpen ? 'cursor-pointer' : ''}`}
+        onClick={() => !isExpired && onOpen?.(item)}
+      >
         {item.image_url ? (
           <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
@@ -149,7 +152,10 @@ function FlashCard({ item, onExpire }) {
 
       <div className="p-3.5">
         <p className="text-nude/40 text-[10px] uppercase tracking-wider mb-0.5">{item.brand}</p>
-        <h3 className="text-white font-semibold text-sm mb-3 line-clamp-2 leading-snug">{item.name}</h3>
+        <h3
+          className={`text-white font-semibold text-sm mb-3 line-clamp-2 leading-snug ${!isExpired && onOpen ? 'cursor-pointer hover:text-orange-300 transition-colors' : ''}`}
+          onClick={() => !isExpired && onOpen?.(item)}
+        >{item.name}</h3>
 
         <div className="flex items-baseline gap-2 mb-3">
           <span className={`font-bold text-base ${isExpired ? 'text-nude/40' : 'text-orange-400'}`}>
@@ -189,6 +195,7 @@ export default function FlashSales() {
   const hasSupabase = !!import.meta.env.VITE_SUPABASE_URL
   const allProducts = useProductsStore(s => s.products)
   const [selectedProduct, setSelectedProduct] = useState(null)
+  const [selectedFlash, setSelectedFlash] = useState(null)
   const catalogSliderRef = useRef(null)
   const [catCanLeft, setCatCanLeft] = useState(false)
   const [catCanRight, setCatCanRight] = useState(false)
@@ -309,6 +316,7 @@ export default function FlashSales() {
                       key={item.id}
                       item={item}
                       onExpire={() => handleExpire(item.id)}
+                      onOpen={setSelectedFlash}
                     />
                   ))}
                 </div>
@@ -387,6 +395,19 @@ export default function FlashSales() {
 
       {selectedProduct && (
         <ProductDetailModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
+      )}
+      {selectedFlash && (
+        <ProductDetailModal
+          product={{
+            ...selectedFlash,
+            price: selectedFlash.sale_price ?? selectedFlash.price,
+            description: selectedFlash.description ||
+              (selectedFlash.sale_price
+                ? `Precio original: Gs. ${Number(selectedFlash.price).toLocaleString('es-PY')} · Ahorrás ${Math.round((1 - selectedFlash.sale_price / selectedFlash.price) * 100)}%`
+                : undefined),
+          }}
+          onClose={() => setSelectedFlash(null)}
+        />
       )}
     </div>
   )
