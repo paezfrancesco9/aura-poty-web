@@ -7,9 +7,11 @@ import Home from './pages/Home'
 import Catalog from './pages/Catalog'
 import ComboCreator from './pages/ComboCreator'
 import Cart from './pages/Cart'
+import FlashSales from './pages/FlashSales'
 import AdminLogin from './pages/admin/AdminLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminProducts from './pages/admin/AdminProducts'
+import AdminFlashSales from './pages/admin/AdminFlashSales'
 import { supabase } from './lib/supabase'
 
 function PublicLayout({ children }) {
@@ -64,6 +66,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
         <Route path="/catalogo" element={<PublicLayout><Catalog /></PublicLayout>} />
+        <Route path="/ofertas" element={<PublicLayout><FlashSales /></PublicLayout>} />
         <Route path="/combo" element={<PublicLayout><ComboCreator /></PublicLayout>} />
         <Route path="/carrito" element={<PublicLayout><Cart /></PublicLayout>} />
 
@@ -71,6 +74,9 @@ export default function App() {
         <Route path="/admin/dashboard" element={<ProtectedAdmin><AdminDashboard /></ProtectedAdmin>} />
         <Route path="/admin/productos" element={<ProtectedAdmin><AdminDashboard /></ProtectedAdmin>}>
           <Route index element={<AdminProducts />} />
+        </Route>
+        <Route path="/admin/flash-sales" element={<ProtectedAdmin><AdminDashboard /></ProtectedAdmin>}>
+          <Route index element={<AdminFlashSales />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

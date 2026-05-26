@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ShoppingCart, Menu, X, Sparkles, Heart, Clock } from 'lucide-react'
+import { ShoppingCart, Menu, X, Sparkles, Heart, Clock, Zap } from 'lucide-react'
 import { useCartStore } from '../../store/useCartStore'
 import { useFavoritesStore } from '../../store/useFavoritesStore'
 import FavoritesPanel from '../ui/FavoritesPanel'
@@ -26,6 +26,7 @@ export default function Navbar() {
   const links = [
     { to: '/', label: 'Inicio' },
     { to: '/catalogo', label: 'Catalogo' },
+    { to: '/ofertas', label: 'Ofertas' },
     { to: '/combo', label: 'Crea tu Combo' },
   ]
 
@@ -56,6 +57,11 @@ export default function Navbar() {
                   {link.to === '/combo' ? (
                     <span className="inline-flex items-center gap-1">
                       <Sparkles size={14} className="text-gold" />
+                      {link.label}
+                    </span>
+                  ) : link.to === '/ofertas' ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Zap size={13} className="text-orange-400 fill-current" />
                       {link.label}
                     </span>
                   ) : link.label}

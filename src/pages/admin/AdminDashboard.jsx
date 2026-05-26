@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Package, LogOut, Menu, X, ExternalLink, BarChart3, CheckCircle } from 'lucide-react'
+import { LayoutDashboard, Package, LogOut, Menu, X, ExternalLink, BarChart3, CheckCircle, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 const NAV = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/productos', label: 'Productos', icon: Package },
+  { to: '/admin/flash-sales', label: 'Ofertas Relámpago', icon: Zap },
 ]
 
 function StatCard({ label, value, sub, color = 'gold' }) {
@@ -175,7 +176,9 @@ export default function AdminDashboard() {
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           <span className="text-white font-medium text-sm">
-            {location.pathname === '/admin/dashboard' ? 'Dashboard' : 'Productos'}
+            {location.pathname === '/admin/dashboard' ? 'Dashboard'
+              : location.pathname === '/admin/flash-sales' ? 'Ofertas Relámpago'
+              : 'Productos'}
           </span>
         </header>
 
