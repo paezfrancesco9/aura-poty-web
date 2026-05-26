@@ -1,9 +1,10 @@
-import { X, ShoppingCart, Check, Heart, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, ShoppingCart, Check, Heart, ChevronLeft, ChevronRight, Zap } from 'lucide-react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useCartStore } from '../../store/useCartStore'
 import { useFavoritesStore } from '../../store/useFavoritesStore'
 import { useRecentlyViewedStore } from '../../store/useRecentlyViewedStore'
 import { useProductsStore } from '../../store/useProductsStore'
+import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 
 const genderBadge = {
@@ -51,6 +52,38 @@ export default function ProductDetailModal({ product, initialVariant, onClose, o
     () => getRelated(currentProduct, allProducts),
     [allProducts, currentProduct.id]
   )
+
+  // Flash deals relacionadas
+  const hasSupabase = !!import.meta.env.VITE_SUPABASE_URL
+  const [flashDeals, setFlashDeals] = useState([])
+  const flashSliderRef = useRef(null)
+  const [flashCanLeft, setFlashCanLeft] = useState(false)
+  const [flashCanRight, setFlashCanRight] = useState(false)
+
+  useEffect(() => {
+    if (!hasSupabase) return
+    supabase.from('flash_sales').select('*').eq('is_active', true).then(({ data }) => {
+      if (!data) return
+      const active = data.filter(f => !f.ends_at || new Date(f.ends_at) > new Date())
+      const sameCat = active.filter(f => f.category === currentProduct.category)
+      const others = active.filter(f => f.category !== currentProduct.category)
+      setFlashDeals([...sameCat, ...others].slice(0, 8))
+    })
+  }, [currentProduct.category, hasSupabase])
+
+  const checkFlashScroll = () => {
+    const el = flashSliderRef.current
+    if (!el) return
+    setFlashCanLeft(el.scrollLeft > 4)
+    setFlashCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4)
+  }
+
+  const scrollFlash = (dir) => {
+    const el = flashSliderRef.current
+    if (!el) return
+    const card = el.querySelector('[data-flash-card]')
+    el.scrollBy({ left: dir * ((card?.offsetWidth ?? 180) + 12), behavior: 'smooth' })
+  }
 
   // Registrar en historial
   useEffect(() => {
@@ -327,6 +360,72 @@ export default function ProductDetailModal({ product, initialVariant, onClose, o
             </div>
 
           </div>
+
+          {/* ── Ofertas Relámpago relacionadas ── */}
+          {flashDeals.length > 0 && (
+            <div className="border-t border-orange-500/15 px-5 sm:px-7 pt-6 pb-6 bg-gradient-to-b from-orange-950/20 to-transparent">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Zap size={12} className="text-orange-400 fill-current" />
+                  <p className="text-orange-400/80 text-xs uppercase tracking-widest font-bold">Ofertas Relámpago</p>
+                </div>
+                <div className="flex gap-1.5">
+                  <button onClick={() => scrollFlash(-1)} disabled={!flashCanLeft}
+                    className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${flashCanLeft ? 'bg-dark-700 border-white/15 text-white/60 hover:text-white' : 'bg-dark-800 border-white/5 text-white/15 cursor-default'}`}>
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button onClick={() => scrollFlash(1)} disabled={!flashCanRight}
+                    className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${flashCanRight ? 'bg-dark-700 border-white/15 text-white/60 hover:text-white' : 'bg-dark-800 border-white/5 text-white/15 cursor-default'}`}>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+              <div
+                ref={flashSliderRef}
+                className="flex gap-3 overflow-x-auto scrollbar-hide"
+                style={{ scrollSnapType: 'x mandatory' }}
+                onScroll={checkFlashScroll}
+              >
+                {flashDeals.map(deal => {
+                  const discount = deal.sale_price ? Math.round((1 - deal.sale_price / deal.price) * 100) : null
+                  const displayPrice = deal.sale_price ?? deal.price
+                  return (
+                    <a
+                      key={deal.id}
+                      href="/ofertas"
+                      data-flash-card
+                      onClick={onClose}
+                      className="shrink-0 w-[72%] sm:w-[calc(25%-9px)] text-left group block"
+                      style={{ scrollSnapAlign: 'start' }}
+                    >
+                      <div className="bg-dark-700 border border-orange-500/20 rounded-xl overflow-hidden group-hover:border-orange-400/50 transition-all duration-300">
+                        <div className="relative aspect-square bg-dark-600 overflow-hidden">
+                          {deal.image_url ? (
+                            <img src={deal.image_url} alt={deal.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-3xl group-hover:scale-110 transition-transform duration-300">{deal.emoji || '⚡'}</div>
+                          )}
+                          <div className="absolute top-2 left-2 bg-gradient-to-r from-orange-500 to-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-0.5 shadow-md">
+                            <Zap size={7} className="fill-current" /> FLASH
+                          </div>
+                          {discount && (
+                            <div className="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded">-{discount}%</div>
+                          )}
+                        </div>
+                        <div className="p-2.5">
+                          <p className="text-white text-xs font-medium line-clamp-2 leading-tight group-hover:text-orange-300 transition-colors">{deal.name}</p>
+                          <div className="flex items-baseline gap-1.5 mt-1">
+                            <span className="text-orange-400 font-bold text-sm">Gs. {Number(displayPrice).toLocaleString('es-PY')}</span>
+                            {deal.sale_price && <span className="text-nude/35 text-xs line-through">Gs. {Number(deal.price).toLocaleString('es-PY')}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </a>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ── También te puede interesar ── */}
           {related.length > 0 && (

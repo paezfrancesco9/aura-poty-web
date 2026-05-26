@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Zap, Clock, ShoppingCart, Flame } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { Zap, Clock, ShoppingCart, Flame, ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useCartStore } from '../store/useCartStore'
+import { useProductsStore } from '../store/useProductsStore'
+import ProductDetailModal from '../components/ui/ProductDetailModal'
 import toast from 'react-hot-toast'
 
 const DEMO_FLASH = [
@@ -185,6 +187,11 @@ export default function FlashSales() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const hasSupabase = !!import.meta.env.VITE_SUPABASE_URL
+  const allProducts = useProductsStore(s => s.products)
+  const [selectedProduct, setSelectedProduct] = useState(null)
+  const catalogSliderRef = useRef(null)
+  const [catCanLeft, setCatCanLeft] = useState(false)
+  const [catCanRight, setCatCanRight] = useState(false)
 
   const fetchItems = useCallback(async () => {
     if (!hasSupabase) {
@@ -211,6 +218,28 @@ export default function FlashSales() {
 
   const activeItems = items.filter(i => !isItemExpired(i))
   const expiredItems = items.filter(i => isItemExpired(i))
+
+  // Productos del catálogo relacionados a categorías de las flash sales activas
+  const relatedProducts = useMemo(() => {
+    const activeCats = new Set(activeItems.map(i => i.category).filter(Boolean))
+    const inCat = allProducts.filter(p => p.is_active !== false && activeCats.has(p.category))
+    const rest = allProducts.filter(p => p.is_active !== false && !activeCats.has(p.category))
+    return [...inCat, ...rest].slice(0, 12)
+  }, [allProducts, items])
+
+  const checkCatScroll = () => {
+    const el = catalogSliderRef.current
+    if (!el) return
+    setCatCanLeft(el.scrollLeft > 4)
+    setCatCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4)
+  }
+
+  const scrollCat = (dir) => {
+    const el = catalogSliderRef.current
+    if (!el) return
+    const card = el.querySelector('[data-cat-card]')
+    el.scrollBy({ left: dir * ((card?.offsetWidth ?? 200) + 12), behavior: 'smooth' })
+  }
 
   return (
     <div className="min-h-screen bg-dark-900">
@@ -299,6 +328,66 @@ export default function FlashSales() {
           </div>
         )}
       </div>
+
+      {/* También te puede interesar — productos del catálogo */}
+      {!loading && relatedProducts.length > 0 && (
+        <div className="border-t border-white/5 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-14">
+          <div className="flex items-center justify-between mb-5">
+            <p className="text-white/35 text-xs uppercase tracking-widest">También te puede interesar</p>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => scrollCat(-1)}
+                disabled={!catCanLeft}
+                className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-200 ${catCanLeft ? 'bg-dark-800 border-white/15 text-white/60 hover:border-white/30 hover:text-white' : 'bg-dark-800 border-white/5 text-white/15 cursor-default'}`}
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                onClick={() => scrollCat(1)}
+                disabled={!catCanRight}
+                className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-200 ${catCanRight ? 'bg-dark-800 border-white/15 text-white/60 hover:border-white/30 hover:text-white' : 'bg-dark-800 border-white/5 text-white/15 cursor-default'}`}
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+          <div
+            ref={catalogSliderRef}
+            className="flex gap-3 overflow-x-auto scrollbar-hide"
+            style={{ scrollSnapType: 'x mandatory' }}
+            onScroll={checkCatScroll}
+          >
+            {relatedProducts.map(product => (
+              <button
+                key={product.id}
+                data-cat-card
+                onClick={() => setSelectedProduct(product)}
+                className="shrink-0 w-[45%] sm:w-[calc(20%-10px)] text-left group"
+                style={{ scrollSnapAlign: 'start' }}
+              >
+                <div className="bg-dark-800 border border-white/10 rounded-xl overflow-hidden group-hover:border-gold/40 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-black/30">
+                  <div className="aspect-square bg-dark-700 overflow-hidden">
+                    {product.image_url ? (
+                      <img src={product.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-3xl group-hover:scale-110 transition-transform duration-300">{product.emoji || '✨'}</div>
+                    )}
+                  </div>
+                  <div className="p-2.5">
+                    <p className="text-white text-xs font-medium line-clamp-2 leading-tight group-hover:text-gold transition-colors duration-200">{product.name}</p>
+                    {product.brand && <p className="text-white/30 text-xs mt-0.5">{product.brand}</p>}
+                    <p className="text-gold text-sm font-bold mt-1.5">Gs. {Number(product.price).toLocaleString('es-PY')}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedProduct && (
+        <ProductDetailModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
+      )}
     </div>
   )
 }
